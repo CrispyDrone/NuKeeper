@@ -105,3 +105,11 @@ Add any additional arguments that are available for the repo command
 nukeeper repo "https://dev.azure.com/{org}/{project}/_git/{repo}/" <PAT> -m 10
 ```
 The `-m 10` tells NuKeeper that it may update 10 packages. For more parameters checkout the [Configuration](/basics/configuration/) page.
+
+#### Adding reviewers to a pull request
+
+You can add reviewers to your pull request by specifying the `--reviewer` or `-r` option as many times as you like. It expects an email address. Normally, the user should be part of any of the teams that belong to the target project.
+
+```sh
+nukeeper repo "https://dev.azure.com/{org}/{project}/_git/{repo}" <PAT> -r nukeeper@company.com
+```

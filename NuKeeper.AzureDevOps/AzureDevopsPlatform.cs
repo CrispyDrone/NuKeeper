@@ -1,3 +1,4 @@
+using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
@@ -20,7 +21,7 @@ namespace NuKeeper.AzureDevOps
             _logger = logger;
         }
 
-        public void Initialise(AuthSettings settings)
+        protected virtual AzureDevOpsRestClient GetClient(AuthSettings settings)
         {
             if (settings == null)
             {
@@ -31,7 +32,13 @@ namespace NuKeeper.AzureDevOps
             {
                 BaseAddress = settings.ApiBase
             };
-            _client = new AzureDevOpsRestClient(httpClient, _logger, settings.Token);
+
+            return new AzureDevOpsRestClient(httpClient, _logger, settings.Token);
+        }
+
+        public void Initialise(AuthSettings settings)
+        {
+            _client = GetClient(settings);
         }
 
         public Task<User> GetCurrentUser()
@@ -89,6 +96,48 @@ namespace NuKeeper.AzureDevOps
                     deleteSourceBranch = request.DeleteBranchAfterMerge
                 }
             };
+
+            // todo: maybe they don't want to create reviewers during the pull request itself, but add individual reviewers later on?
+            // could be ok, if you want to make sure the pull request creation doesn't fail, but you can simply continue without reviewers
+            // anyway. I don't see any advantage to adding reviewers/labels separately.
+
+
+            // It seems there's an api to search for a user based on email address, maybe we should just use that?
+            // but I guess in theory the user should be part of the team...?
+            if (request.Reviewers.Any())
+            {
+                try
+                {
+                    var teams = await _client.GetTeamsAsync(target.Owner);
+                    var teamMembersPerTeam = await Task.WhenAll(
+                        teams.Select(t => _client.GetTeamMembersAsync(target.Owner, t.id))
+                    );
+                    var teamMemberIds = teamMembersPerTeam
+                        .SelectMany(x => x)
+                        .Select(t => t.identity);
+
+                    var identities = await Task.WhenAll(
+                        teamMemberIds.Select(t => _client.GetUserAsync(t.id))
+                    );
+
+                    var reviewers = identities.Join(
+                        request.Reviewers,
+                        id => id.Mail,
+                        r => r.Name,
+                        (identity, r) => new { Id = identity.id, IsRequired = r.IsRequired },
+                        StringComparer.InvariantCultureIgnoreCase
+                    );
+
+                    req.reviewers = reviewers
+                        .Select(r => new IdentityRefWithVote { id = r.Id, isRequired = r.IsRequired })
+                        .ToArray();
+                }
+                catch (NuKeeperException ex)
+                {
+                    _logger.Error("Failed to add reviewers to pull request", ex);
+                    _logger.Normal("Continuing and creating pull request without reviewers");
+                }
+            }
 
             var pullRequest = await _client.CreatePullRequest(req, target.Owner, repo.id);
 

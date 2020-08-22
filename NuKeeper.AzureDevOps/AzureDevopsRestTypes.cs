@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 
@@ -6,6 +7,14 @@ namespace NuKeeper.AzureDevOps
 #pragma warning disable CA1056 // Uri properties should not be strings
 #pragma warning disable CA1707 // Identifiers should not contain underscores
 #pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CA1819 // Properties should not return arrays
+
+    public class Resource<T>
+    {
+        public int count { get; set; }
+        public IEnumerable<T> value { get; set; }
+
+    }
 
     public class Avatar
     {
@@ -27,6 +36,47 @@ namespace NuKeeper.AzureDevOps
         public string imageUrl { get; set; }
         public string descriptor { get; set; }
     }
+
+    public class Identity
+    {
+        public string id { get; set; }
+        //public PropertiesCollection properties { get; set; }
+        public Dictionary<string, object> properties { get; set; }
+        public string Mail
+        {
+            get
+            {
+                if (properties.ContainsKey("Mail"))
+                {
+                    switch (properties["Mail"])
+                    {
+                        case JObject mailObject:
+                            return mailObject.Property("$value").Value.ToString();
+
+                        case JProperty mailProp:
+                            return mailProp.Value.ToString();
+
+                        case string mailString:
+                            return mailString;
+                    }
+                }
+
+                return string.Empty;
+            }
+        }
+    }
+
+    //public class PropertiesCollection
+    //{
+    //    // ?? this is just not what's being returned from my TFS/AzureDevops instance
+    //    // see https://docs.microsoft.com/en-us/rest/api/azure/devops/ims/identities/read%20identities?view=azure-devops-rest-6.0#propertiescollection
+    //    public int count { get; set; }
+    //    public object item { get; set; }
+    //    public string[] keys { get; set; }
+    //    public string[] values { get; set; }
+    //    // ??????
+    //    public string Mail { get; set; }
+    //}
 
     public class GitRefs
     {
@@ -81,11 +131,13 @@ namespace NuKeeper.AzureDevOps
         // public Lastmergecommit LastMergeCommit { get; set; }
         // public IEnumerable<Reviewer> Reviewers { get; set; }
     }
+
     public class ProjectResource
     {
         public int Count { get; set; }
         public IEnumerable<Project> value { get; set; }
     }
+
     public class Project
     {
         public string description { get; set; }
@@ -96,6 +148,39 @@ namespace NuKeeper.AzureDevOps
         public int revision { get; set; }
         public string visibility { get; set; }
     }
+
+    public class WebApiTeam
+    {
+        public string description { get; set; }
+
+        /// <summary>
+        ///     Team (Identity) Guid. A Team Foundation ID.
+        /// </summary>
+        public string id { get; set; }
+
+        /// <summary>
+        ///     Identity REST API Url to this team.
+        /// </summary>
+        public string identityUrl { get; set; }
+
+        public string name { get; set; }
+
+        public string projectId { get; set; }
+
+        public string projectName { get; set; }
+
+        /// <summary>
+        ///     Team REST API Url.
+        /// </summary>
+        public string url { get; set; }
+    }
+
+    public class TeamMember
+    {
+        public IdentityRef identity { get; set; }
+        public bool isTeamAdmin { get; set; }
+    }
+
     public class PRRequest
     {
         public string sourceRefName { get; set; }
@@ -103,7 +188,36 @@ namespace NuKeeper.AzureDevOps
         public string title { get; set; }
         public string description { get; set; }
         public GitPullRequestCompletionOptions completionOptions { get; set; }
+        public IEnumerable<IdentityRefWithVote> reviewers { get; set; }
     }
+
+    public class IdentityRef
+    {
+        public string id { get; set; }
+
+        /// <summary>
+        ///     The descriptor is the primary way to reference the graph subject while the system is running.
+        ///     This field will uniquely identify the same graph subject across both Accounts and collections.
+        /// </summary>
+        public string descriptor { get; set; }
+
+        /// <summary>
+        ///     This is the non-unique display name of the graph subject.
+        ///     To change this field, you must alter its value in the source provider.
+        /// </summary>
+        public string displayName { get; set; }
+
+        /// <summary>
+        ///     Email address for Azure Devops. Domain name for Azure Devops Server. (??)
+        /// </summary>
+        public string uniqueName { get; set; }
+    }
+
+    public class IdentityRefWithVote : IdentityRef
+    {
+        public bool isRequired { get; set; }
+    }
+
     public class GitPullRequestCompletionOptions
     {
         public bool deleteSourceBranch { get; set; }
