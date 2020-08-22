@@ -7,6 +7,7 @@ This fork includes additional features and fixes that have not been integrated i
 Additional features:
 
 + Support `--targetBranch` for TFS while using the repository command and providing a remote url
++ Support `--reviewer` for AzureDevops/TFS for all commands that create pull requests
 
 ## How To Build and Run From Source
 
