@@ -41,9 +41,42 @@ namespace NuKeeper.AzureDevOps
             _client = GetClient(settings);
         }
 
-        public Task<User> GetCurrentUser()
+        public async Task<User> GetCurrentUser()
         {
-            return Task.FromResult(new User("user@email.com", "", ""));
+            try
+            {
+                var currentAccounts = await _client.GetCurrentUser();
+                var account = currentAccounts.value.FirstOrDefault();
+
+                if (account == null)
+                    return User.Default;
+
+                return new User(account.accountId, account.accountName, account.Mail);
+
+            }
+            catch (NuKeeperException)
+            {
+                return User.Default;
+            }
+        }
+
+        public async Task<User> GetUserByMail(string email)
+        {
+            try
+            {
+                var currentAccounts = await _client.GetUserByMail(email);
+                var account = currentAccounts.value.FirstOrDefault();
+
+                if (account == null)
+                    return User.Default;
+
+                return new User(account.accountId, account.accountName, account.Mail);
+
+            }
+            catch (NuKeeperException)
+            {
+                return User.Default;
+            }
         }
 
         public async Task<bool> PullRequestExists(ForkData target, string headBranch, string baseBranch)
@@ -217,6 +250,45 @@ namespace NuKeeper.AzureDevOps
             }
 
             return new SearchCodeResult(totalCount);
+        }
+
+        public async Task<int> GetNumberOfOpenPullRequests(string projectName, string repositoryName)
+        {
+            var user = await GetCurrentUser();
+
+            if (user == User.Default)
+            {
+                // TODO: allow this to be configurable
+                user = await GetUserByMail("bot@nukeeper.com");
+            }
+
+            var prs = await _client.GetPullRequests(
+                projectName,
+                repositoryName,
+                user == User.Default ?
+                    string.Empty
+                    : user.Login
+            );
+
+            if (user == User.Default)
+            {
+                var relevantPrs = prs?
+                    .Where(
+                        pr => pr.labels
+                            ?.FirstOrDefault(
+                                l => l.name.Equals(
+                                    "nukeeper",
+                                    StringComparison.InvariantCultureIgnoreCase
+                                )
+                            )?.active ?? false
+                    );
+
+                return relevantPrs?.Count() ?? 0;
+            }
+            else
+            {
+                return prs?.Count() ?? 0;
+            }
         }
     }
 }

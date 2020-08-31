@@ -113,3 +113,12 @@ You can add reviewers to your pull request by specifying the `--reviewer` or `-r
 ```sh
 nukeeper repo "https://dev.azure.com/{org}/{project}/_git/{repo}" <PAT> -r nukeeper@company.com
 ```
+
+#### Setting a custom limit on the number of open pull requests
+
+You can instruct nukeeper to not create more pull requests than allowed by specifying the `--maxopenpullrequests` parameter. The strategy for figuring out how many active pull requests there are is explained in the [configuration page](/basics/configuration/).
+
+```sh
+nukeeper repo "https://dev.azure.com/{org}/{project}/_git/{repo}" <PAT> --maxopenpullrequests 10
+```
+

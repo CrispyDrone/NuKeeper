@@ -33,12 +33,13 @@ namespace NuKeeper.Engine.Packages
             _logger = logger;
         }
 
-        public async Task<int> MakeUpdatePullRequests(
+        public async Task<(int UpdatesMade, bool ThresholdReached)> MakeUpdatePullRequests(
             IGitDriver git,
             RepositoryData repository,
             IReadOnlyCollection<PackageUpdateSet> updates,
             NuGetSources sources,
-            SettingsContainer settings)
+            SettingsContainer settings
+        )
         {
             if (settings == null)
             {
@@ -55,7 +56,21 @@ namespace NuKeeper.Engine.Packages
                 throw new ArgumentNullException(nameof(repository));
             }
 
+            var openPrs = await _collaborationFactory.CollaborationPlatform.GetNumberOfOpenPullRequests(
+                repository.Pull.Owner,
+                repository.Pull.Name
+            );
+
+            var allowedPrs = settings.UserSettings.MaxOpenPullRequests;
+
+            if (openPrs >= allowedPrs)
+            {
+                _logger.Normal("Number of open pull requests equals or exceeds allowed number of open pull requests.");
+                return (0, true);
+            }
+
             int totalCount = 0;
+
             try
             {
                 var groups = UpdateConsolidator.Consolidate(updates,
@@ -63,11 +78,19 @@ namespace NuKeeper.Engine.Packages
 
                 foreach (var updateSets in groups)
                 {
-                    var updatesMade = await MakeUpdatePullRequests(
+                    var (updatesMade, pullRequestCreated) = await MakeUpdatePullRequests(
                         git, repository,
                         sources, settings, updateSets);
 
                     totalCount += updatesMade;
+
+                    if (pullRequestCreated)
+                        openPrs++;
+
+                    if (openPrs == allowedPrs)
+                    {
+                        return (totalCount, true);
+                    }
                 }
             }
 #pragma warning disable CA1031
@@ -77,10 +100,10 @@ namespace NuKeeper.Engine.Packages
                 _logger.Error("Updates failed", ex);
             }
 
-            return totalCount;
+            return (totalCount, false);
         }
 
-        private async Task<int> MakeUpdatePullRequests(
+        private async Task<(int UpdatesMade, bool PullRequestCreated)> MakeUpdatePullRequests(
             IGitDriver git, RepositoryData repository,
             NuGetSources sources, SettingsContainer settings,
             IReadOnlyCollection<PackageUpdateSet> updates)
@@ -117,6 +140,9 @@ namespace NuKeeper.Engine.Packages
                 await git.Commit(commitMessage);
             }
 
+            bool pullRequestCreated = false;
+
+            // bug: pr might not have been created yet
             if (haveUpdates)
             {
                 await git.Push(repository.Remote, branchWithChanges);
@@ -149,6 +175,8 @@ namespace NuKeeper.Engine.Packages
                     }
 
                     await _collaborationFactory.CollaborationPlatform.OpenPullRequest(repository.Pull, pullRequestRequest, settings.SourceControlServerSettings.Labels);
+
+                    pullRequestCreated = true;
                 }
                 else
                 {
@@ -156,7 +184,7 @@ namespace NuKeeper.Engine.Packages
                 }
             }
             await git.Checkout(repository.DefaultBranch);
-            return filteredUpdates.Count;
+            return (filteredUpdates.Count, pullRequestCreated);
         }
     }
 }

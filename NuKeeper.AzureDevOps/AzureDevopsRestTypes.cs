@@ -16,6 +16,36 @@ namespace NuKeeper.AzureDevOps
 
     }
 
+    public class Account
+    {
+        public string accountId { get; set; }
+        public string accountName { get; set; }
+        public string accountOwner { get; set; }
+        public Dictionary<string, object> properties { get; set; }
+        public string Mail
+        {
+            get
+            {
+                if (properties.ContainsKey("Mail"))
+                {
+                    switch (properties["Mail"])
+                    {
+                        case JObject mailObject:
+                            return mailObject.Property("$value").Value.ToString();
+
+                        case JProperty mailProp:
+                            return mailProp.Value.ToString();
+
+                        case string mailString:
+                            return mailString;
+                    }
+                }
+
+                return string.Empty;
+            }
+        }
+    }
+
     public class Avatar
     {
         public string href { get; set; }
@@ -124,12 +154,21 @@ namespace NuKeeper.AzureDevOps
         public string MergeId { get; set; }
         public string Url { get; set; }
         public bool SupportsIterations { get; set; }
+        public IEnumerable<WebApiTagDefinition> labels { get; set; }
 
         // public CreatedBy CreatedBy { get; set; }
         // public Lastmergesourcecommit LastMergeSourceCommit { get; set; }
         // public Lastmergetargetcommit LastMergeTargetCommit { get; set; }
         // public Lastmergecommit LastMergeCommit { get; set; }
         // public IEnumerable<Reviewer> Reviewers { get; set; }
+    }
+
+    public class WebApiTagDefinition
+    {
+        public bool active { get; set; }
+        public string id { get; set; }
+        public string name { get; set; }
+        public string url { get; set; }
     }
 
     public class ProjectResource
