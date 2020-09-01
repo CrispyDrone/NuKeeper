@@ -8,6 +8,7 @@ Additional features:
 
 + Support `--targetBranch` for TFS while using the repository command and providing a remote url
 + Support `--reviewer` for AzureDevops/TFS for all commands that create pull requests
++ Fixed issue with `--change minor` or `--change patch` resulting in incorrect major or minor updates when multiple versions installed in different projects already differ in minor or major versions.
 
 ## How To Build and Run From Source
 
