@@ -1,18 +1,19 @@
 using McMaster.Extensions.CommandLineUtils;
-using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Formats;
 using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.Output;
+using NuKeeper.Abstractions;
+using NuKeeper.ConfigurationProviders;
 using NuKeeper.Engine;
 using NuKeeper.Inspection.Logging;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Text;
 using System.Threading.Tasks;
+using System;
 
 namespace NuKeeper.Commands
 {
@@ -81,16 +82,35 @@ namespace NuKeeper.Commands
             Description = "Template used for creating the branch name.")]
         public string BranchNameTemplate { get; set; }
 
+        [Option(CommandOptionType.SingleValue, ShortName = "cmt", LongName = "commitmessagetemplate",
+            Description = "Mustache template used for creating commit messages.")]
+        // I added this here because BranchNameTemplate is here as well, but I see now that commits or branches are only created
+        // in case of collaboration commands...
+        public string CommitMessageTemplate { get; set; }
+
+        [Option(CommandOptionType.MultipleValue, ShortName = "", LongName = "context",
+            Description = @"
+Context used when creating commit messages as key=value pairs.
+Currently only supports simple values so no arrays, objects, or delegates.
+")]
+        // I added this here because BranchNameTemplate is here as well, but I see now that commits or branches are only created
+        // in case of collaboration commands...
+        public string[] Context { get; set; }
+
         [Option(CommandOptionType.SingleValue, ShortName = "git", LongName = "gitclipath",
             Description = "Path to git to use instead of lib2gitsharp implementation")]
         public string GitCliPath { get; set; }
 
-        protected CommandBase(IConfigureLogger logger, IFileSettingsCache fileSettingsCache)
+        protected CommandBase(
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache
+        )
         {
             _configureLogger = logger;
             FileSettingsCache = fileSettingsCache;
         }
 
+        // this class is a mess. All it should do is define command line arguments, and invoke an execute method on an interface.
         public async Task<int> OnExecute()
         {
             InitialiseLogging();
@@ -108,50 +128,7 @@ namespace NuKeeper.Commands
             return await Run(settings);
         }
 
-        private void InitialiseLogging()
-        {
-            var settingsFromFile = FileSettingsCache.GetSettings();
-
-            var defaultLogDestination = string.IsNullOrWhiteSpace(LogFile)
-                ? Abstractions.Logging.LogDestination.Console
-                : Abstractions.Logging.LogDestination.File;
-
-            var logDest = Concat.FirstValue(LogDestination, settingsFromFile.LogDestination,
-                defaultLogDestination);
-
-            var logLevel = Concat.FirstValue(Verbosity, settingsFromFile.Verbosity, LogLevel.Normal);
-            var logFile = Concat.FirstValue(LogFile, settingsFromFile.LogFile, "nukeeper.log");
-
-            _configureLogger.Initialise(logLevel, logDest, logFile);
-        }
-
-        private SettingsContainer MakeSettings()
-        {
-            var fileSettings = FileSettingsCache.GetSettings();
-            var allowedChange = Concat.FirstValue(AllowedChange, fileSettings.Change, VersionChange.Major);
-            var usePrerelease = Concat.FirstValue(UsePrerelease, fileSettings.UsePrerelease, Abstractions.Configuration.UsePrerelease.FromPrerelease);
-            var branchNameTemplate = Concat.FirstValue(BranchNameTemplate, fileSettings.BranchNameTemplate);
-            var gitpath = Concat.FirstValue(GitCliPath, fileSettings.GitCliPath);
-
-            var settings = new SettingsContainer
-            {
-                SourceControlServerSettings = new SourceControlServerSettings(),
-                PackageFilters = new FilterSettings(),
-                UserSettings = new UserSettings
-                {
-                    AllowedChange = allowedChange,
-                    UsePrerelease = usePrerelease,
-                    NuGetSources = NuGetSources,
-                    GitPath = gitpath
-                },
-                BranchSettings = new BranchSettings
-                {
-                    BranchNameTemplate = branchNameTemplate
-                }
-            };
-
-            return settings;
-        }
+        protected abstract Task<int> Run(SettingsContainer settings);
 
         protected virtual async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
         {
@@ -182,15 +159,15 @@ namespace NuKeeper.Commands
                 : Abstractions.Output.OutputDestination.File;
 
             settings.UserSettings.OutputDestination =
-                Concat.FirstValue(OutputDestination, settingsFromFile.OutputDestination,
+                Coalesce.FirstValueOrDefault(OutputDestination, settingsFromFile.OutputDestination,
                     defaultOutputDestination);
 
             settings.UserSettings.OutputFormat =
-                Concat.FirstValue(OutputFormat, settingsFromFile.OutputFormat,
+                Coalesce.FirstValueOrDefault(OutputFormat, settingsFromFile.OutputFormat,
                     Abstractions.Output.OutputFormat.Text);
 
             settings.UserSettings.OutputFileName =
-                Concat.FirstValue(OutputFileName, settingsFromFile.OutputFileName,
+                Coalesce.FirstValueOrDefault(OutputFileName, settingsFromFile.OutputFileName,
                     "nukeeper.out");
 
             var branchNameTemplateValid = PopulateBranchNameTemplate(settings);
@@ -199,14 +176,74 @@ namespace NuKeeper.Commands
                 return branchNameTemplateValid;
             }
 
+            //todo: validation?
+            var commitMessageTemplate = Coalesce.FirstValueOrDefault(
+                CommitMessageTemplate,
+                settingsFromFile.CommitMessageTemplate
+            );
+            settings.UserSettings.CommitMessageTemplate = commitMessageTemplate;
+
+            //todo: set up DI with the chain of responsibility
+            var context = await new ProvideContext(FileSettingsCache, this).ProvideAsync(settings);
+            if (!context.IsSuccess)
+            {
+                return context;
+            }
+
             return await Task.FromResult(ValidationResult.Success);
+        }
+
+        private void InitialiseLogging()
+        {
+            var settingsFromFile = FileSettingsCache.GetSettings();
+
+            var defaultLogDestination = string.IsNullOrWhiteSpace(LogFile)
+                ? Abstractions.Logging.LogDestination.Console
+                : Abstractions.Logging.LogDestination.File;
+
+            var logDest = Coalesce.FirstValueOrDefault(LogDestination, settingsFromFile.LogDestination,
+                defaultLogDestination);
+
+            var logLevel = Coalesce.FirstValueOrDefault(Verbosity, settingsFromFile.Verbosity, LogLevel.Normal);
+            var logFile = Coalesce.FirstValueOrDefault(LogFile, settingsFromFile.LogFile, "nukeeper.log");
+
+            _configureLogger.Initialise(logLevel, logDest, logFile);
+        }
+
+        // why does this method exist?
+        private SettingsContainer MakeSettings()
+        {
+            var fileSettings = FileSettingsCache.GetSettings();
+            var allowedChange = Coalesce.FirstValueOrDefault(AllowedChange, fileSettings.Change, VersionChange.Major);
+            var usePrerelease = Coalesce.FirstValueOrDefault(UsePrerelease, fileSettings.UsePrerelease, Abstractions.Configuration.UsePrerelease.FromPrerelease);
+            var branchNameTemplate = Coalesce.FirstValueOrDefault(BranchNameTemplate, fileSettings.BranchNameTemplate);
+            var gitpath = Coalesce.FirstValueOrDefault(GitCliPath, fileSettings.GitCliPath);
+
+            var settings = new SettingsContainer
+            {
+                SourceControlServerSettings = new SourceControlServerSettings(),
+                PackageFilters = new FilterSettings(),
+                UserSettings = new UserSettings
+                {
+                    AllowedChange = allowedChange,
+                    UsePrerelease = usePrerelease,
+                    NuGetSources = NuGetSources,
+                    GitPath = gitpath
+                },
+                BranchSettings = new BranchSettings
+                {
+                    BranchNameTemplate = branchNameTemplate
+                }
+            };
+
+            return settings;
         }
 
         private TimeSpan? ReadMinPackageAge()
         {
             const string defaultMinPackageAge = "7d";
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var valueWithFallback = Concat.FirstValue(MinimumPackageAge, settingsFromFile.Age, defaultMinPackageAge);
+            var valueWithFallback = Coalesce.FirstValueOrDefault(MinimumPackageAge, settingsFromFile.Age, defaultMinPackageAge);
 
             return DurationParser.Parse(valueWithFallback);
         }
@@ -215,7 +252,7 @@ namespace NuKeeper.Commands
             SettingsContainer settings)
         {
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var value = Concat.FirstValue(Include, settingsFromFile.Include);
+            var value = Coalesce.FirstValueOrDefault(Include, settingsFromFile.Include);
 
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -242,7 +279,7 @@ namespace NuKeeper.Commands
             SettingsContainer settings)
         {
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var value = Concat.FirstValue(Exclude, settingsFromFile.Exclude);
+            var value = Coalesce.FirstValueOrDefault(Exclude, settingsFromFile.Exclude);
 
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -269,7 +306,7 @@ namespace NuKeeper.Commands
             SettingsContainer settings)
         {
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var value = Concat.FirstValue(BranchNameTemplate, settingsFromFile.BranchNameTemplate);
+            var value = Coalesce.FirstValueOrDefault(BranchNameTemplate, settingsFromFile.BranchNameTemplate);
 
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -317,6 +354,10 @@ namespace NuKeeper.Commands
             return ValidationResult.Success;
         }
 
-        protected abstract Task<int> Run(SettingsContainer settings);
+        //private ValidationResult ValidateCommitMessageTemplate(SettingsContainer settings)
+        //{
+        //    // todo: ensure valid template
+        //    return ValidationResult.Success;
+        //}
     }
 }

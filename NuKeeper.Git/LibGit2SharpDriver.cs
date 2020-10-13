@@ -1,13 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using LibGit2Sharp;
 using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.Git;
 using NuKeeper.Abstractions.Inspections.Files;
 using NuKeeper.Abstractions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using GitCommands = LibGit2Sharp.Commands;
 using Repository = LibGit2Sharp.Repository;
 
@@ -97,6 +97,7 @@ namespace NuKeeper.Git
                     if (BranchExists(branchName))
                     {
                         _logger.Normal($"Git checkout local branch '{branchName}'");
+                        //TODO: bug, 2 conflicts prevent checkout
                         GitCommands.Checkout(repo, repo.Branches[branchName]);
                     }
                     else

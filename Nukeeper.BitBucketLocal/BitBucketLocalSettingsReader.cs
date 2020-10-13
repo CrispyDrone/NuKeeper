@@ -40,7 +40,7 @@ namespace NuKeeper.BitBucketLocal
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
 
-            Username = Concat.FirstValue(repositoryUri.UserInfo, _environmentVariablesProvider.GetUserName());
+            Username = Coalesce.FirstValueOrDefault(repositoryUri.UserInfo, _environmentVariablesProvider.GetUserName());
 
             if (pathParts.Count < 2)
             {
@@ -66,10 +66,10 @@ namespace NuKeeper.BitBucketLocal
                 throw new ArgumentNullException(nameof(settings));
             }
 
-            settings.Username = Concat.FirstValue(Username, _environmentVariablesProvider.GetUserName());
+            settings.Username = Coalesce.FirstValueOrDefault(Username, _environmentVariablesProvider.GetUserName());
 
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable("NuKeeper_bitbucketlocal_token");
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
             settings.ForkMode = settings.ForkMode ?? ForkMode.SingleRepositoryOnly;
         }
     }

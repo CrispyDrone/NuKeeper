@@ -1,0 +1,12 @@
+{
+  "CommitMessageTemplate": "{{#50char}}chore: Update {{^multipleChanges}}{{#packages}}{{Name}} to {{Version}}{{/packages}}{{/multipleChanges}}{{#multipleChanges}}{{packageCount}} packages{{/multipleChanges}}{{/50char}}",
+  "PullRequestBodyTemplate": "{{#multipleChanges}}{{packageCount}} packages were updated in {{projectsUpdated}} project{{#multipleProjects}}s{{/multipleProjects}}:\r\n{{#packages}}| {{Name}} {{/packages}}|\r\n\r\n## Details of updated packages\r\n\r\n{{/multipleChanges}}\r\n{{#packages}}NuKeeper has generated a {{ActualChange}} update of `{{Name}}` to `{{Version}}`{{^MultipleUpdates}} from `{{FromVersion}}`{{/MultipleUpdates}}\r\n{{#MultipleUpdates}}{{ProjectsUpdated}} versions of `{{Name}}` were found in use: {{#Updates}}`{{FromVersion}}`{{^Last}}, {{/Last}}{{/Updates}}{{/MultipleUpdates}}\r\n{{#Publication}}`{{Name}} {{Version}}` was published at `{{Date}}`, {{Ago}}{{/Publication}}\r\n{{#LatestVersion}}There is also a higher version, `{{Name}} {{Version}}`{{#Publication}} published at `{{Date}}`, {{Ago}}{{/Publication}}, but this was not applied as only `{{AllowedChange}}` version changes are allowed.\r\n{{/LatestVersion}}\r\n### {{ProjectsUpdated}} project update{{#MultipleProjectsUpdated}}s{{/MultipleProjectsUpdated}}:\r\n| Project   | Package   | From   | To   |\r\n |:----------|:----------|-------:|-----:|\r\n{{#Updates}}\r\n| `{{SourceFilePath}}` | `{{Name}}` | {{#IsFromNuget}}[{{FromVersion}}]({{FromUrl}}) | [{{ToVersion}}]({{Url}}) |{{/IsFromNuget}}{{^IsFromNuget}}{{FromVersion}} | {{ToVersion}} |{{/IsFromNuget}}\r\n{{/Updates}}\r\n{{#IsFromNuget}}\r\n\r\n[{{Name}} {{Version}} on NuGet.org]({{Url}})\r\n{{/IsFromNuget}}\r\n{{/packages}}\r\n\r\n{{#footer}}\r\n{{WarningMessage}}\r\n{{NuKeeperUrl}}\r\n{{/footer}}",
+  "PullRequestTitleTemplate":  "Updates for {{company}}",
+  "Context": {
+    "_delegates": {
+      "50char": "using System; new Func<string, Func<string, string>, object>((str, render) => { var rendering = render(str); return rendering.Length > 50 ? rendering.Substring(0, 47).PadRight(50, '.') : rendering; })"
+    },
+    "company":  "Interparking"
+  }
+}
+

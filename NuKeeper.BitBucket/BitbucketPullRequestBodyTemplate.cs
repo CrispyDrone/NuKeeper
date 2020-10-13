@@ -1,50 +1,71 @@
+using NuGet.Packaging.Core;
+using NuGet.Versioning;
+using NuKeeper.Abstractions.CollaborationModels;
+using NuKeeper.Abstractions.CollaborationPlatform;
+using NuKeeper.Abstractions.Formats;
+using NuKeeper.Abstractions.RepositoryInspection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using NuGet.Packaging.Core;
-using NuGet.Versioning;
-using NuKeeper.Abstractions.CollaborationPlatform;
-using NuKeeper.Abstractions.Formats;
-using NuKeeper.Abstractions.RepositoryInspection;
 
 namespace NuKeeper.BitBucket
 {
-    public class BitbucketCommitWorder : ICommitWorder
+    public class BitbucketPullRequestBodyTemplate : UpdateMessageTemplate
     {
-        private const string CommitEmoji = "📦";
+        public BitbucketPullRequestBodyTemplate()
+            : base(new StubbleTemplateRenderer()) { }
 
-        public string MakePullRequestTitle(IReadOnlyCollection<PackageUpdateSet> updates)
+        //TODO
+        public static string DefaultTemplate { get; } =
+@"{{#multipleChanges}}{{packageCount}} packages were updated in {{projectsUpdated}} project{{#multipleProjects}}s{{/multipleProjects}}:
+{{#packages}}`{{Name}}`{{^Last}}, {{/Last}}{{/packages}}
+
+**Details of updated packages**
+
+{{/multipleChanges}}
+{{#packages}}NuKeeper has generated a {{ActualChange}} update of `{{Name}}` to `{{Version}}`{{^MultipleUpdates}} from `{{FromVersion}}`{{/MultipleUpdates}}
+{{#MultipleUpdates}}{{ProjectsUpdated}} versions of `{{Name}}` were found in use: {{#Updates}}`{{FromVersion}}`{{^Last}}, {{/Last}}{{/Updates}}{{/MultipleUpdates}}
+{{#Publication}}`{{Name}} {{Version}}` was published at `{{Date}}`, {{Ago}}{{/Publication}}
+{{#LatestVersion}}There is also a higher version, `{{Name}} {{Version}}`{{#Publication}} published at `{{Date}}`, {{Ago}}{{/Publication}}, but this was not applied as only `{{AllowedChange}}` version changes are allowed.
+{{/LatestVersion}}
+{{ProjectsUpdated}} project update{{#MultipleProjectsUpdated}}s{{/MultipleProjectsUpdated}}:
+{{#Updates}}
+Updated `{{SourceFilePath}}` to `{{Name}}` `{{ToVersion}}` from `{{FromVersion}}`
+{{/Updates}}
+{{#IsFromNuget}}
+
+[{{Name}} {{Version}} on NuGet.org]({{Url}})
+{{/IsFromNuget}}
+{{/packages}}
+{{#multipleChanges}}
+
+{{/multipleChanges}}
+{{#footer}}
+{{WarningMessage}}
+**NuKeeper**: {{NuKeeperUrl}}
+{{/footer}}
+";
+
+        public string CustomTemplate { get; set; }
+
+        public override string Value => CustomTemplate ?? DefaultTemplate;
+
+        //TODO: remove
+        public static string Write(PackageUpdateSet updates)
         {
-            if (updates == null)
-            {
-                throw new ArgumentNullException(nameof(updates));
-            }
+            if (updates == null) throw new ArgumentNullException(nameof(updates));
 
-            if (updates.Count == 1)
-            {
-                return PackageTitle(updates.First());
-            }
+            var builder = new StringBuilder();
 
-            return $"Automatic update of {updates.Count} packages";
+            builder.AppendLine(MakeCommitVersionDetails(updates));
+
+            AddCommitFooter(builder);
+
+            return builder.ToString();
         }
 
-        private static string PackageTitle(PackageUpdateSet updates)
-        {
-            return $"Automatic update of {updates.SelectedId} to {updates.SelectedVersion}";
-        }
-
-        public string MakeCommitMessage(PackageUpdateSet updates)
-        {
-            if (updates == null)
-            {
-                throw new ArgumentNullException(nameof(updates));
-            }
-
-            return $":{CommitEmoji}: {PackageTitle(updates)}";
-        }
-
-        public string MakeCommitDetails(IReadOnlyCollection<PackageUpdateSet> updates)
+        public static string Write(IReadOnlyCollection<PackageUpdateSet> updates)
         {
             if (updates == null)
             {

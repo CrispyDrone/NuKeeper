@@ -1,8 +1,8 @@
-using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Inspection.Logging;
 using NuKeeper.Local;
+using System.Threading.Tasks;
 
 namespace NuKeeper.Commands
 {
@@ -11,8 +11,11 @@ namespace NuKeeper.Commands
     {
         private readonly ILocalEngine _engine;
 
-        public InspectCommand(ILocalEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache) :
-            base(logger, fileSettingsCache)
+        public InspectCommand(
+            ILocalEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache
+        ) : base(logger, fileSettingsCache)
         {
             _engine = engine;
         }

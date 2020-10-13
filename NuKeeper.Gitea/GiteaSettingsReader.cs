@@ -65,7 +65,7 @@ namespace NuKeeper.Gitea
 
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable(GiteaTokenEnvironmentVariableName);
 
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
         }
 
         public async Task<RepositorySettings> RepositorySettings(Uri repositoryUri, string targetBranch = null)

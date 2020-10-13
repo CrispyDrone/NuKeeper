@@ -19,17 +19,23 @@ namespace NuKeeper.Engine.Packages
         private readonly IExistingCommitFilter _existingCommitFilter;
         private readonly INuKeeperLogger _logger;
         private readonly IUpdateRunner _updateRunner;
+        private readonly IEnrichContext<PackageUpdateSet, UpdateMessageTemplate> _enricher;
+        private readonly IEnrichContext<IReadOnlyCollection<PackageUpdateSet>, UpdateMessageTemplate> _multiEnricher;
 
         public PackageUpdater(
             ICollaborationFactory collaborationFactory,
             IExistingCommitFilter existingCommitFilter,
             IUpdateRunner localUpdater,
+            IEnrichContext<PackageUpdateSet, UpdateMessageTemplate> enricher,
+            IEnrichContext<IReadOnlyCollection<PackageUpdateSet>, UpdateMessageTemplate> multiEnricher,
             INuKeeperLogger logger
         )
         {
             _collaborationFactory = collaborationFactory;
             _existingCommitFilter = existingCommitFilter;
             _updateRunner = localUpdater;
+            _enricher = enricher;
+            _multiEnricher = multiEnricher;
             _logger = logger;
         }
 
@@ -124,16 +130,23 @@ namespace NuKeeper.Engine.Packages
 
             var filteredUpdates = await _existingCommitFilter.Filter(git, updates, repository.DefaultBranch, branchWithChanges);
 
+            var commitTemplate = _collaborationFactory.CommitTemplate;
             foreach (var filtered in updates.Where(u => !filteredUpdates.Contains(u)))
             {
-                var commitMessage = _collaborationFactory.CommitWorder.MakeCommitMessage(filtered);
+                _enricher.Enrich(filtered, commitTemplate);
+                var commitMessage = commitTemplate.Output();
+                //TODO: this bug not detected in tests
+                commitTemplate.Clear();
                 _logger.Normal($"Commit '{commitMessage}' already in branch '{branchWithChanges}'");
             }
 
             var haveUpdates = filteredUpdates.Any();
             foreach (var updateSet in filteredUpdates)
             {
-                var commitMessage = _collaborationFactory.CommitWorder.MakeCommitMessage(updateSet);
+                _enricher.Enrich(updateSet, commitTemplate);
+                var commitMessage = commitTemplate.Output();
+                //TODO: this bug not detected in tests
+                commitTemplate.Clear();
 
                 await _updateRunner.Update(updateSet, sources);
 
@@ -159,10 +172,15 @@ namespace NuKeeper.Engine.Packages
 
                 bool pullRequestExists = await _collaborationFactory.CollaborationPlatform.PullRequestExists(repository.Pull, qualifiedBranch, repository.DefaultBranch);
 
+                var prTitleTemplate = _collaborationFactory.PullRequestTitleTemplate;
+                var prBodyTemplate = _collaborationFactory.PullRequestBodyTemplate;
+
                 if (!pullRequestExists)
                 {
-                    var title = _collaborationFactory.CommitWorder.MakePullRequestTitle(updates);
-                    var body = _collaborationFactory.CommitWorder.MakeCommitDetails(updates);
+                    _multiEnricher.Enrich(updates, prTitleTemplate);
+                    _multiEnricher.Enrich(updates, prBodyTemplate);
+                    var title = prTitleTemplate.Output();
+                    var body = prBodyTemplate.Output();
 
                     var pullRequestRequest = new PullRequestRequest(qualifiedBranch, title, repository.DefaultBranch, settings.BranchSettings.DeleteBranchAfterMerge) { Body = body };
 

@@ -1,3 +1,4 @@
+using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Git;
 using NuKeeper.Abstractions.Logging;
@@ -11,12 +12,19 @@ namespace NuKeeper.Engine.Packages
 {
     public class ExistingCommitFilter : IExistingCommitFilter
     {
-        private readonly ICollaborationFactory _collaborationFactory;
+        private readonly CommitUpdateMessageTemplate _commitTemplate;
+        private readonly IEnrichContext<PackageUpdateSet, UpdateMessageTemplate> _enricher;
         private readonly INuKeeperLogger _logger;
 
-        public ExistingCommitFilter(ICollaborationFactory collaborationFactory, INuKeeperLogger logger)
+        // IGitDriver should be taken as constructor dependency
+        public ExistingCommitFilter(
+            CommitUpdateMessageTemplate commitTemplate,
+            IEnrichContext<PackageUpdateSet, UpdateMessageTemplate> enricher,
+            INuKeeperLogger logger
+        )
         {
-            _collaborationFactory = collaborationFactory;
+            _commitTemplate = commitTemplate;
+            _enricher = enricher;
             _logger = logger;
         }
 
@@ -41,9 +49,13 @@ namespace NuKeeper.Engine.Packages
 
                 foreach (var update in updates)
                 {
-                    var updateCommitMessage = _collaborationFactory.CommitWorder.MakeCommitMessage(update);
+                    _enricher.Enrich(update, _commitTemplate);
+                    var updateCommitMessage = _commitTemplate.Output();
+                    //TODO: bug was not discovered in tests
+                    _commitTemplate.Clear();
                     var compactUpdateCommitMessage = new string(updateCommitMessage.Where(c => !char.IsWhiteSpace(c)).ToArray());
 
+                    // use equality comparer that ignores whitespace instead
                     if (!compactCommitMessages.Contains(compactUpdateCommitMessage))
                     {
                         filtered.Add(update);

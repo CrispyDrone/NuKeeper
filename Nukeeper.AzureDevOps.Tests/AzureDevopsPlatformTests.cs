@@ -13,7 +13,7 @@ using System;
 using System.Linq;
 using NuKeeper.Abstractions;
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     public class AzureDevOpsPlatformTests
     {

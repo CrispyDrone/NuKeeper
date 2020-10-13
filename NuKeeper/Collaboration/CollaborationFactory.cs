@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using NuKeeper.Abstractions;
+using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Formats;
@@ -10,10 +7,13 @@ using NuKeeper.Abstractions.Logging;
 using NuKeeper.AzureDevOps;
 using NuKeeper.BitBucket;
 using NuKeeper.BitBucketLocal;
-using NuKeeper.Engine;
 using NuKeeper.Gitea;
 using NuKeeper.GitHub;
 using NuKeeper.Gitlab;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace NuKeeper.Collaboration
 {
@@ -21,29 +21,52 @@ namespace NuKeeper.Collaboration
     {
         private readonly IEnumerable<ISettingsReader> _settingReaders;
         private readonly INuKeeperLogger _nuKeeperLogger;
+        private readonly CommitUpdateMessageTemplate _commitMessageTemplate;
+        private readonly ITemplateValidator _templateValidator;
         private Platform? _platform;
+        private string _commitTemplate;
+        private string _pullrequestTitleTemplate;
+        private string _pullrequestBodyTemplate;
+        private IDictionary<string, object> _templateContext;
 
-        public IForkFinder ForkFinder { get; private set; }
-
-        public ICommitWorder CommitWorder { get; private set; }
-
-        public IRepositoryDiscovery RepositoryDiscovery { get; private set; }
-
-        public ICollaborationPlatform CollaborationPlatform { get; private set; }
-
-        public CollaborationPlatformSettings Settings { get; }
-
-        public CollaborationFactory(IEnumerable<ISettingsReader> settingReaders,
-            INuKeeperLogger nuKeeperLogger)
+        public CollaborationFactory(
+            IEnumerable<ISettingsReader> settingReaders,
+            INuKeeperLogger nuKeeperLogger,
+            CommitUpdateMessageTemplate commitMessageTemplate,
+            ITemplateValidator templateValidator
+        )
         {
             _settingReaders = settingReaders;
             _nuKeeperLogger = nuKeeperLogger;
+            _commitMessageTemplate = commitMessageTemplate;
+            _templateValidator = templateValidator;
             Settings = new CollaborationPlatformSettings();
         }
 
-        public async Task<ValidationResult> Initialise(Uri apiEndpoint, string token,
-            ForkMode? forkModeFromSettings, Platform? platformFromSettings)
+        public IForkFinder ForkFinder { get; private set; }
+        public IRepositoryDiscovery RepositoryDiscovery { get; private set; }
+        public ICollaborationPlatform CollaborationPlatform { get; private set; }
+        public CollaborationPlatformSettings Settings { get; }
+        public UpdateMessageTemplate CommitTemplate => _commitMessageTemplate;
+        public UpdateMessageTemplate PullRequestTitleTemplate { get; private set; }
+        public UpdateMessageTemplate PullRequestBodyTemplate { get; private set; }
+
+        public async Task<ValidationResult> Initialise(
+            Uri apiEndpoint,
+            string token,
+            ForkMode? forkModeFromSettings,
+            Platform? platformFromSettings,
+            string commitTemplate = null,
+            string pullrequestTitleTemplate = null,
+            string pullrequestBodyTemplate = null,
+            IDictionary<string, object> templateContext = null
+        )
         {
+            _commitTemplate = commitTemplate;
+            _pullrequestTitleTemplate = pullrequestTitleTemplate;
+            _pullrequestBodyTemplate = pullrequestBodyTemplate;
+            _templateContext = templateContext;
+
             var platformSettingsReader = await FindPlatformSettingsReader(platformFromSettings, apiEndpoint);
             if (platformSettingsReader != null)
             {
@@ -59,7 +82,7 @@ namespace NuKeeper.Collaboration
             Settings.ForkMode = forkModeFromSettings;
             platformSettingsReader.UpdateCollaborationPlatformSettings(Settings);
 
-            var result = ValidateSettings();
+            var result = await ValidateSettings();
             if (!result.IsSuccess)
             {
                 return result;
@@ -71,7 +94,9 @@ namespace NuKeeper.Collaboration
         }
 
         private async Task<ISettingsReader> FindPlatformSettingsReader(
-            Platform? platformFromSettings, Uri apiEndpoint)
+            Platform? platformFromSettings,
+            Uri apiEndpoint
+        )
         {
             if (platformFromSettings.HasValue)
             {
@@ -99,7 +124,7 @@ namespace NuKeeper.Collaboration
             }
         }
 
-        private ValidationResult ValidateSettings()
+        private async Task<ValidationResult> ValidateSettings()
         {
             if (!Settings.BaseApiUrl.IsWellFormedOriginalString()
                 || (Settings.BaseApiUrl.Scheme != "http" && Settings.BaseApiUrl.Scheme != "https"))
@@ -123,6 +148,27 @@ namespace NuKeeper.Collaboration
                 return ValidationResult.Failure("Platform was not set");
             }
 
+            if (!string.IsNullOrEmpty(_commitTemplate))
+            {
+                var validationResult = await _templateValidator.ValidateAsync(_commitTemplate);
+                if (!validationResult.IsSuccess)
+                    return validationResult;
+            }
+
+            if (!string.IsNullOrEmpty(_pullrequestTitleTemplate))
+            {
+                var validationResult = await _templateValidator.ValidateAsync(_pullrequestTitleTemplate);
+                if (!validationResult.IsSuccess)
+                    return validationResult;
+            }
+
+            if (!string.IsNullOrEmpty(_pullrequestBodyTemplate))
+            {
+                var validationResult = await _templateValidator.ValidateAsync(_pullrequestBodyTemplate);
+                if (!validationResult.IsSuccess)
+                    return validationResult;
+            }
+
             return ValidationResult.Success;
         }
 
@@ -137,49 +183,70 @@ namespace NuKeeper.Collaboration
                     RepositoryDiscovery = new AzureDevOpsRepositoryDiscovery(_nuKeeperLogger, CollaborationPlatform, Settings.Token);
                     ForkFinder = new AzureDevOpsForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
 
-                    // We go for the specific platform version of ICommitWorder
-                    // here since Azure DevOps has different commit message limits compared to other platforms.
-                    CommitWorder = new AzureDevOpsCommitWorder();
+                    PullRequestTitleTemplate = new AzureDevOpsPullRequestTitleTemplate
+                    {
+                        CustomTemplate = _pullrequestTitleTemplate
+                    };
+
+                    // We go for the specific platform version of IWriteUpdateMessage
+                    // here since Azure DevOps has different pull request message limits compared to other platforms.
+                    PullRequestBodyTemplate = new AzureDevOpsPullRequestBodyTemplate
+                    {
+                        CustomTemplate = _pullrequestBodyTemplate
+                    };
                     break;
 
                 case Platform.GitHub:
                     CollaborationPlatform = new OctokitClient(_nuKeeperLogger);
                     RepositoryDiscovery = new GitHubRepositoryDiscovery(_nuKeeperLogger, CollaborationPlatform);
                     ForkFinder = new GitHubForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
-                    CommitWorder = new DefaultCommitWorder();
                     break;
 
                 case Platform.Bitbucket:
                     CollaborationPlatform = new BitbucketPlatform(_nuKeeperLogger);
                     RepositoryDiscovery = new BitbucketRepositoryDiscovery(_nuKeeperLogger);
                     ForkFinder = new BitbucketForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
-                    CommitWorder = new BitbucketCommitWorder();
+                    PullRequestBodyTemplate = new BitbucketPullRequestBodyTemplate
+                    {
+                        CustomTemplate = _pullrequestBodyTemplate
+                    };
                     break;
 
                 case Platform.BitbucketLocal:
                     CollaborationPlatform = new BitBucketLocalPlatform(_nuKeeperLogger);
                     RepositoryDiscovery = new BitbucketLocalRepositoryDiscovery(_nuKeeperLogger, CollaborationPlatform, Settings);
                     ForkFinder = new BitbucketForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
-                    CommitWorder = new DefaultCommitWorder();
                     break;
 
                 case Platform.GitLab:
                     CollaborationPlatform = new GitlabPlatform(_nuKeeperLogger);
                     RepositoryDiscovery = new GitlabRepositoryDiscovery(_nuKeeperLogger, CollaborationPlatform);
                     ForkFinder = new GitlabForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
-                    CommitWorder = new DefaultCommitWorder();
                     break;
 
                 case Platform.Gitea:
                     CollaborationPlatform = new GiteaPlatform(_nuKeeperLogger);
                     RepositoryDiscovery = new GiteaRepositoryDiscovery(_nuKeeperLogger, CollaborationPlatform);
                     ForkFinder = new GiteaForkFinder(CollaborationPlatform, _nuKeeperLogger, forkMode);
-                    CommitWorder = new DefaultCommitWorder();
                     break;
 
                 default:
                     throw new NuKeeperException($"Unknown platform: {_platform}");
             }
+
+            _commitMessageTemplate.CustomTemplate = _commitTemplate;
+            PullRequestTitleTemplate ??= new DefaultPullRequestTitleTemplate
+            {
+                CustomTemplate = _pullrequestTitleTemplate
+            };
+            PullRequestBodyTemplate ??= new DefaultPullRequestBodyTemplate
+            {
+                CustomTemplate = _pullrequestBodyTemplate
+            };
+            InitializeTemplateContext(_commitMessageTemplate);
+            //TODO test custom properties in body and title templates
+            InitializeTemplateContext(PullRequestTitleTemplate);
+            InitializeTemplateContext(PullRequestBodyTemplate);
 
             var auth = new AuthSettings(Settings.BaseApiUrl, Settings.Token, Settings.Username);
             CollaborationPlatform.Initialise(auth);
@@ -189,6 +256,19 @@ namespace NuKeeper.Collaboration
                 CollaborationPlatform == null)
             {
                 throw new NuKeeperException($"Platform {_platform} could not be initialised");
+            }
+        }
+
+        private void InitializeTemplateContext(UpdateMessageTemplate template)
+        {
+            template.Clear();
+
+            if (_templateContext != null)
+            {
+                foreach (var property in _templateContext.Keys)
+                {
+                    template.AddPlaceholderValue(property, _templateContext[property], persist: true);
+                }
             }
         }
     }

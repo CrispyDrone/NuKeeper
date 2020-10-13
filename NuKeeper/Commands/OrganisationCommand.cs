@@ -14,15 +14,17 @@ namespace NuKeeper.Commands
         [Argument(0, Name = "Organisation name", Description = "The organisation to scan.")]
         public string OrganisationName { get; set; }
 
-        public OrganisationCommand(ICollaborationEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory)
-            : base(engine, logger, fileSettingsCache, collaborationFactory)
-        {
-        }
+        public OrganisationCommand(
+            ICollaborationEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache,
+            ICollaborationFactory collaborationFactory
+        ) : base(engine, logger, fileSettingsCache, collaborationFactory) { }
 
         protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
         {
             var fileSettings = FileSettingsCache.GetSettings();
-            ApiEndpoint = Concat.FirstValue(ApiEndpoint, fileSettings.Api, "https://api.github.com");
+            ApiEndpoint = Coalesce.FirstValueOrDefault(ApiEndpoint, fileSettings.Api, "https://api.github.com");
 
             var baseResult = await base.PopulateSettings(settings);
             if (!baseResult.IsSuccess)

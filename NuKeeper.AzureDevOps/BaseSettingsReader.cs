@@ -28,7 +28,7 @@ namespace NuKeeper.AzureDevOps
 
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable("NuKeeper_azure_devops_token");
 
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
             settings.ForkMode = settings.ForkMode ?? ForkMode.SingleRepositoryOnly;
         }
 

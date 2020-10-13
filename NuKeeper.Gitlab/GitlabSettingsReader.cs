@@ -38,7 +38,7 @@ namespace NuKeeper.Gitlab
 
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable(GitLabTokenEnvironmentVariableName);
 
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
         }
 
         public Task<RepositorySettings> RepositorySettings(Uri repositoryUri, string targetBranch = null)

@@ -1,6 +1,8 @@
+using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Git;
+using NuKeeper.Abstractions.RepositoryInspection;
 using NuKeeper.AzureDevOps;
 using NuKeeper.BitBucket;
 using NuKeeper.BitBucketLocal;
@@ -13,7 +15,9 @@ using NuKeeper.GitHub;
 using NuKeeper.Gitlab;
 using NuKeeper.Local;
 using NuKeeper.Update.Selection;
+using NuKeeper.Validators;
 using SimpleInjector;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NuKeeper.Commands;
@@ -66,6 +70,11 @@ namespace NuKeeper
             container.RegisterSingleton<IGitDiscoveryDriver, LibGit2SharpDiscoveryDriver>();
 
             container.RegisterSingleton<ICollaborationFactory, CollaborationFactory>();
+            container.RegisterSingleton<ITemplateRenderer, StubbleTemplateRenderer>();
+            container.RegisterSingleton<CommitUpdateMessageTemplate>();
+            container.RegisterSingleton<IEnrichContext<PackageUpdateSet, UpdateMessageTemplate>, PackageUpdateSetEnricher>();
+            container.RegisterSingleton<IEnrichContext<IReadOnlyCollection<PackageUpdateSet>, UpdateMessageTemplate>, PackageUpdateSetsEnricher>();
+            container.RegisterSingleton<ITemplateValidator, StubbleMustacheTemplateValidator>();
 
             var settingsRegistration = RegisterMultipleSingletons<ISettingsReader>(container, new[]
             {
@@ -77,6 +86,7 @@ namespace NuKeeper
                 typeof(GitlabSettingsReader).Assembly,
                 typeof(GiteaSettingsReader).Assembly
             });
+
 
             container.Collection.Register<ISettingsReader>(settingsRegistration);
         }

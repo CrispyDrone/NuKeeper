@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using NSubstitute;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
@@ -12,6 +8,10 @@ using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.NuGetApi;
 using NuKeeper.Inspection.NuGetApi;
 using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace NuKeeper.Inspection.Tests.NuGetApi
 {
@@ -176,9 +176,21 @@ namespace NuKeeper.Inspection.Tests.NuGetApi
                 new PackageIdentity(packageName, new NuGetVersion(2, 3, 4)), new PackageSource("http://none"),
                 DateTimeOffset.Now, null);
 
-            lookup.FindVersionUpdate(Arg.Is<PackageIdentity>(pm => pm.Id == packageName),
-                    Arg.Any<NuGetSources>(), Arg.Any<VersionChange>(), Arg.Any<UsePrerelease>())
-                .Returns(new PackageLookupResult(VersionChange.Major, responseMetaData, responseMetaData, responseMetaData));
+            lookup
+                .FindVersionUpdate(
+                    Arg.Is<PackageIdentity>(pm => pm.Id == packageName),
+                    Arg.Any<NuGetSources>(),
+                    Arg.Any<VersionChange>(),
+                    Arg.Any<UsePrerelease>()
+                 )
+                .Returns(
+                    new PackageLookupResult(
+                        VersionChange.Major,
+                        responseMetaData,
+                        responseMetaData,
+                        responseMetaData
+                    )
+                );
         }
 
         private static BulkPackageLookup BuildBulkPackageLookup(IApiPackageLookup apiLookup)

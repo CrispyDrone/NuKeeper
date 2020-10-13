@@ -5,6 +5,7 @@ using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.Output;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
@@ -29,8 +30,6 @@ namespace NuKeeper.Abstractions.Tests.Configuration
                 Directory.Delete(_uniqueTemporaryFolder, true);
             }
         }
-
-
 
         [Test]
         public void MissingFileReturnsNoSettings()
@@ -60,6 +59,8 @@ namespace NuKeeper.Abstractions.Tests.Configuration
             Assert.That(data.Platform, Is.Null);
             Assert.That(data.BranchNameTemplate, Is.Null);
             Assert.That(data.DeleteBranchAfterMerge, Is.Null);
+            Assert.That(data.CommitMessageTemplate, Is.Null);
+            Assert.That(data.Context, Is.Null);
         }
 
         [Test]
@@ -92,6 +93,8 @@ namespace NuKeeper.Abstractions.Tests.Configuration
             Assert.That(data.Platform, Is.Null);
             Assert.That(data.BranchNameTemplate, Is.Null);
             Assert.That(data.DeleteBranchAfterMerge, Is.Null);
+            Assert.That(data.CommitMessageTemplate, Is.Null);
+            Assert.That(data.Context, Is.Null);
         }
 
         private const string FullFileData = @"{
@@ -116,7 +119,9 @@ namespace NuKeeper.Abstractions.Tests.Configuration
                ""OutputFileName"" : ""out_42.txt"",
                ""LogDestination"" : ""file"",
                ""Platform"" : ""Bitbucket"",
-               ""DeleteBranchAfterMerge"": ""true""
+               ""DeleteBranchAfterMerge"": ""true"",
+               ""CommitMessageTemplate"": ""📦 Automatic update from {{packageName}} to {{packageVersion}}"",
+               ""Context"": { ""company"": ""NuKeeper"", ""issue"": ""JIRA-001"" }
         }";
 
         [Test]
@@ -139,6 +144,8 @@ namespace NuKeeper.Abstractions.Tests.Configuration
             Assert.That(data.OutputFileName, Is.EqualTo("out_42.txt"));
             Assert.That(data.BranchNameTemplate, Is.EqualTo("nukeeper/MyBranch"));
             Assert.That(data.DeleteBranchAfterMerge, Is.EqualTo(true));
+            Assert.That(data.CommitMessageTemplate, Is.EqualTo("📦 Automatic update from {{packageName}} to {{packageVersion}}"));
+            CollectionAssert.AreEquivalent(data.Context, new Dictionary<string, object> { { "company", "NuKeeper" }, { "issue", "JIRA-001" } });
         }
 
         [Test]
@@ -206,7 +213,9 @@ namespace NuKeeper.Abstractions.Tests.Configuration
                ""vErBoSiTy"": ""Q"",
                ""CHANGE"": ""PATCH"",
                ""bRanCHNamETempLATe"": ""nukeeper/MyBranch"",
-               ""deLeTEBranCHafTERMerge"": ""true""
+               ""deLeTEBranCHafTERMerge"": ""true"",
+               ""coMmItmESsageTeMpLate"": ""📦 Automatic update from {{packageName}} to {{packageVersion}}"",
+               ""cOntExT"": { ""company"": ""NuKeeper"", ""issue"": ""JIRA-001"" }
             }";
 
             var path = MakeTestFile(configData);
@@ -230,6 +239,8 @@ namespace NuKeeper.Abstractions.Tests.Configuration
             Assert.That(data.Change, Is.EqualTo(VersionChange.Patch));
             Assert.That(data.BranchNameTemplate, Is.EqualTo("nukeeper/MyBranch"));
             Assert.That(data.DeleteBranchAfterMerge, Is.EqualTo(true));
+            Assert.That(data.CommitMessageTemplate, Is.EqualTo("📦 Automatic update from {{packageName}} to {{packageVersion}}"));
+            CollectionAssert.AreEquivalent(data.Context, new Dictionary<string, string> { { "company", "NuKeeper" }, { "issue", "JIRA-001" } });
         }
 
         [Test]

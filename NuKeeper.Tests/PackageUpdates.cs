@@ -62,6 +62,12 @@ namespace NuKeeper.Tests
             return ForNewVersion(newPackage, packages);
         }
 
+        public static PackageUpdateSet For(string packageName, params PackageInProject[] packages)
+        {
+            var newPackage = new PackageIdentity(packageName, new NuGetVersion("1.2.3"));
+            return ForNewVersion(newPackage, packages);
+        }
+
         public static PackageUpdateSet ForNewVersion(PackageIdentity newPackage, params PackageInProject[] packages)
         {
             var publishedDate = new DateTimeOffset(2018, 2, 19, 11, 12, 7, TimeSpan.Zero);

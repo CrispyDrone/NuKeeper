@@ -49,7 +49,7 @@ namespace NuKeeper.GitHub
             }
 
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable("NuKeeper_github_token");
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
             settings.ForkMode ??= ForkMode.PreferFork;
         }
 

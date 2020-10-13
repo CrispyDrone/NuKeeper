@@ -11,10 +11,12 @@ namespace NuKeeper.Commands
     [Command("global", Description = "Performs version checks and generates pull requests for all repositories the provided token can access.")]
     internal class GlobalCommand : MultipleRepositoryCommand
     {
-        public GlobalCommand(ICollaborationEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory)
-            : base(engine, logger, fileSettingsCache, collaborationFactory)
-        {
-        }
+        public GlobalCommand(
+            ICollaborationEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache,
+            ICollaborationFactory collaborationFactory
+        ) : base(engine, logger, fileSettingsCache, collaborationFactory) { }
 
         protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
         {

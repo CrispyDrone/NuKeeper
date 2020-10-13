@@ -1,7 +1,7 @@
 using McMaster.Extensions.CommandLineUtils;
+using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Inspection.Logging;
 using System.IO;
-using NuKeeper.Abstractions.Configuration;
 using System.Threading.Tasks;
 
 namespace NuKeeper.Commands
@@ -14,10 +14,10 @@ namespace NuKeeper.Commands
         // ReSharper disable once MemberCanBePrivate.Global
         protected string Path { get; }
 
-        protected LocalNuKeeperCommand(IConfigureLogger logger, IFileSettingsCache fileSettingsCache)
-            : base(logger, fileSettingsCache)
-        {
-        }
+        protected LocalNuKeeperCommand(
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache
+        ) : base(logger, fileSettingsCache) { }
 
         protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
         {

@@ -12,6 +12,7 @@ namespace NuKeeper.Inspection.Logging
             _logLevel = logLevel;
         }
 
+        // not threadsafe
         public void LogError(string message, Exception ex)
         {
             var saveColor = Console.ForegroundColor;

@@ -22,10 +22,12 @@ namespace NuKeeper.Commands
             Description = "The maximum number of repositories to change. Defaults to 10.")]
         public int? MaxRepositoriesChanged { get; set; }
 
-        protected MultipleRepositoryCommand(ICollaborationEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory)
-            : base(engine, logger, fileSettingsCache, collaborationFactory)
-        {
-        }
+        protected MultipleRepositoryCommand(
+            ICollaborationEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache,
+            ICollaborationFactory collaborationFactory
+         ) : base(engine, logger, fileSettingsCache, collaborationFactory) { }
 
         protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
         {
@@ -50,7 +52,7 @@ namespace NuKeeper.Commands
             var fileSettings = FileSettingsCache.GetSettings();
             const int defaultMaxReposChanged = 10;
 
-            settings.UserSettings.MaxRepositoriesChanged = Concat.FirstValue(
+            settings.UserSettings.MaxRepositoriesChanged = Coalesce.FirstValueOrDefault(
                 MaxRepositoriesChanged, fileSettings.MaxRepo, defaultMaxReposChanged);
 
             return ValidationResult.Success;
@@ -59,7 +61,7 @@ namespace NuKeeper.Commands
         private ValidationResult PopulateIncludeRepos(SettingsContainer settings)
         {
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var value = Concat.FirstValue(IncludeRepos, settingsFromFile.IncludeRepos);
+            var value = Coalesce.FirstValueOrDefault(IncludeRepos, settingsFromFile.IncludeRepos);
 
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -82,7 +84,7 @@ namespace NuKeeper.Commands
         private ValidationResult PopulateExcludeRepos(SettingsContainer settings)
         {
             var settingsFromFile = FileSettingsCache.GetSettings();
-            var value = Concat.FirstValue(ExcludeRepos, settingsFromFile.ExcludeRepos);
+            var value = Coalesce.FirstValueOrDefault(ExcludeRepos, settingsFromFile.ExcludeRepos);
 
             if (string.IsNullOrWhiteSpace(value))
             {

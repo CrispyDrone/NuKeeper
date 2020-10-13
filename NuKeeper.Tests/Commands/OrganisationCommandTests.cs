@@ -1,49 +1,61 @@
 using NSubstitute;
-using NuKeeper.Abstractions.CollaborationPlatform;
+using NUnit.Framework;
 using NuKeeper.Abstractions.Configuration;
-using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.Output;
-using NuKeeper.Collaboration;
+using NuKeeper.AzureDevOps;
 using NuKeeper.Commands;
 using NuKeeper.GitHub;
-using NuKeeper.Inspection.Logging;
-using NUnit.Framework;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using NuKeeper.Abstractions.Git;
-using NuKeeper.AzureDevOps;
+using System;
 
 namespace NuKeeper.Tests.Commands
 {
     [TestFixture]
-    public class OrganisationCommandTests
+#pragma warning disable CA1812
+    class OrganisationCommandTests : CommandTestsBase<OrganisationCommand>
     {
-        private static CollaborationFactory GetCollaborationFactory(Func<IGitDiscoveryDriver, IEnvironmentVariablesProvider, ISettingsReader> createSettingsReader)
-        {
-            var environmentVariablesProvider = Substitute.For<IEnvironmentVariablesProvider>();
+        string _includeRepos;
+        string _excludeRepos;
+        ForkMode? _forkMode;
+        int? _maxRepositoryChanges;
 
-            return new CollaborationFactory(
-                new ISettingsReader[] { createSettingsReader(new MockedGitDiscoveryDriver(), environmentVariablesProvider) },
-                Substitute.For<INuKeeperLogger>()
-            );
+        protected override OrganisationCommand MakeCommand()
+        {
+            return new OrganisationCommand(_collaborationEngine, _logger, _fileSettings, _realCollaborationFactory);
+        }
+
+        protected override void ConfigureCommand(OrganisationCommand command)
+        {
+            command.PersonalAccessToken = "testToken";
+            command.OrganisationName = "testOrg";
+
+            if (_includeRepos != null) command.IncludeRepos = _includeRepos;
+            if (_excludeRepos != null) command.ExcludeRepos = _excludeRepos;
+            if (_forkMode != null) command.ForkMode = _forkMode;
+            if (_maxRepositoryChanges != null) command.MaxRepositoriesChanged = _maxRepositoryChanges;
+        }
+
+        [TearDown]
+        public void TeardDown()
+        {
+            _includeRepos = null;
+            _excludeRepos = null;
+            _forkMode = null;
+            _maxRepositoryChanges = null;
         }
 
         [Test]
         public async Task ShouldCallEngineAndNotSucceedWithoutParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new GitHubSettingsReader(d, e) });
+            var command = MakeCommand();
 
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(-1));
-            await engine
+            await _collaborationEngine
                 .DidNotReceive()
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -51,21 +63,16 @@ namespace NuKeeper.Tests.Commands
         [Test]
         public async Task ShouldCallEngineAndSucceedWithRequiredGithubParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new GitHubSettingsReader(d, e) });
+            var command = MakeCommand();
             command.PersonalAccessToken = "abc";
             command.OrganisationName = "testOrg";
 
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(0));
-            await engine
+            await _collaborationEngine
                 .Received(1)
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -73,14 +80,9 @@ namespace NuKeeper.Tests.Commands
         [Test]
         public async Task ShouldCallEngineAndSucceedWithRequiredAzureDevOpsParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new AzureDevOpsSettingsReader(d, e));
-
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new AzureDevOpsSettingsReader(d, e) });
+            var command = MakeCommand();
             command.PersonalAccessToken = "abc";
             command.OrganisationName = "testOrg";
             command.ApiEndpoint = "https://dev.azure.com/org";
@@ -88,7 +90,7 @@ namespace NuKeeper.Tests.Commands
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(0));
-            await engine
+            await _collaborationEngine
                 .Received(1)
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -133,11 +135,11 @@ namespace NuKeeper.Tests.Commands
             Assert.That(settings.UserSettings.NuGetSources, Is.Null);
             Assert.That(settings.UserSettings.OutputDestination, Is.EqualTo(OutputDestination.Console));
             Assert.That(settings.UserSettings.OutputFormat, Is.EqualTo(OutputFormat.Text));
+            Assert.That(settings.UserSettings.MaxRepositoriesChanged, Is.EqualTo(10));
+            Assert.That(settings.UserSettings.CommitMessageTemplate, Is.Null);
+            Assert.That(settings.UserSettings.Context, Is.Empty);
 
             Assert.That(settings.BranchSettings.BranchNameTemplate, Is.Null);
-
-            Assert.That(settings.UserSettings.MaxRepositoriesChanged, Is.EqualTo(10));
-
             Assert.That(settings.BranchSettings.DeleteBranchAfterMerge, Is.EqualTo(true));
 
             Assert.That(settings.SourceControlServerSettings.IncludeRepos, Is.Null);
@@ -250,8 +252,9 @@ namespace NuKeeper.Tests.Commands
                 IncludeRepos = "foo",
                 ExcludeRepos = "bar"
             };
+            _includeRepos = "IncludeFromCommand";
 
-            var (settings, _) = await CaptureSettings(fileSettings, true);
+            var (settings, _) = await CaptureSettings(fileSettings);
 
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.SourceControlServerSettings, Is.Not.Null);
@@ -269,8 +272,9 @@ namespace NuKeeper.Tests.Commands
                 IncludeRepos = "foo",
                 ExcludeRepos = "bar"
             };
+            _excludeRepos = "ExcludeFromCommand";
 
-            var (settings, _) = await CaptureSettings(fileSettings, false, true);
+            var (settings, _) = await CaptureSettings(fileSettings);
 
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.SourceControlServerSettings, Is.Not.Null);
@@ -283,7 +287,8 @@ namespace NuKeeper.Tests.Commands
         [Test]
         public async Task CommandLineWillOverrideForkMode()
         {
-            var (_, platformSettings) = await CaptureSettings(FileSettings.Empty(), false, false, null, ForkMode.PreferSingleRepository);
+            _forkMode = ForkMode.PreferSingleRepository;
+            var (_, platformSettings) = await CaptureSettings(FileSettings.Empty());
 
             Assert.That(platformSettings, Is.Not.Null);
             Assert.That(platformSettings.ForkMode, Is.Not.Null);
@@ -297,55 +302,13 @@ namespace NuKeeper.Tests.Commands
             {
                 MaxRepo = 12,
             };
+            _excludeRepos = "ExcludeFromCommand";
+            _maxRepositoryChanges = 22;
 
-            var (settings, _) = await CaptureSettings(fileSettings, false, true, 22);
+            var (settings, _) = await CaptureSettings(fileSettings);
 
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.UserSettings.MaxRepositoriesChanged, Is.EqualTo(22));
-        }
-
-        public static async Task<(SettingsContainer fileSettings, CollaborationPlatformSettings platformSettings)> CaptureSettings(
-            FileSettings settingsIn,
-            bool addCommandRepoInclude = false,
-            bool addCommandRepoExclude = false,
-            int? maxRepo = null,
-            ForkMode? forkMode = null)
-        {
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-
-            SettingsContainer settingsOut = null;
-            var engine = Substitute.For<ICollaborationEngine>();
-            await engine.Run(Arg.Do<SettingsContainer>(x => settingsOut = x));
-
-            fileSettings.GetSettings().Returns(settingsIn);
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
-            command.PersonalAccessToken = "testToken";
-            command.OrganisationName = "testOrg";
-
-            if (addCommandRepoInclude)
-            {
-                command.IncludeRepos = "IncludeFromCommand";
-            }
-
-            if (addCommandRepoExclude)
-            {
-                command.ExcludeRepos = "ExcludeFromCommand";
-            }
-
-            if (forkMode != null)
-            {
-                command.ForkMode = forkMode;
-            }
-
-            command.MaxRepositoriesChanged = maxRepo;
-
-            await command.OnExecute();
-
-            return (settingsOut, collaborationFactory.Settings);
         }
     }
 }

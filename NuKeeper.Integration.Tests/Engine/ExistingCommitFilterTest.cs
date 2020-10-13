@@ -2,6 +2,7 @@ using NSubstitute;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
 using NuGet.Versioning;
+using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Git;
@@ -36,7 +37,7 @@ namespace NuKeeper.Integration.Tests.Engine
 
             var updates = nugetsToUpdate.Select(n => MakeUpdateSet(n)).ToList();
 
-            var subject = MakeExistingCommitFilter();
+            var subject = MakeExistingCommitFilter(updates);
 
             var result = await subject.Filter(git, updates.AsReadOnly(), "base", "head");
 
@@ -62,25 +63,25 @@ namespace NuKeeper.Integration.Tests.Engine
 
             var updates = nugetsToUpdate.Select(n => MakeUpdateSet(n)).ToList();
 
-            var subject = MakeExistingCommitFilter();
+            var subject = MakeExistingCommitFilter(updates);
 
             var result = await subject.Filter(git, updates.AsReadOnly(), "base", "head");
 
             Assert.AreEqual(2, result.Count);
         }
 
-        private IExistingCommitFilter MakeExistingCommitFilter()
+        private IExistingCommitFilter MakeExistingCommitFilter(IEnumerable<PackageUpdateSet> updates)
         {
             var collaborationFactory = Substitute.For<ICollaborationFactory>();
 
             var gitClient = Substitute.For<ICollaborationPlatform>();
             collaborationFactory.CollaborationPlatform.Returns(gitClient);
 
-            var commitWorder = Substitute.For<ICommitWorder>();
-            commitWorder.MakeCommitMessage(Arg.Any<PackageUpdateSet>()).Returns(p => $"Automatic update of {((PackageUpdateSet)p[0]).SelectedId} to {((PackageUpdateSet)p[0]).SelectedVersion}");
-            collaborationFactory.CommitWorder.Returns(commitWorder);
-
-            return new ExistingCommitFilter(collaborationFactory, NukeeperLogger);
+            return new ExistingCommitFilter(
+                new CommitUpdateMessageTemplateStub(updates),
+                new PackageUpdateSetEnricher(),
+                NukeeperLogger
+            );
         }
 
         private static Task<IReadOnlyCollection<string>> FixedReturnVal(string[] ids)
@@ -124,6 +125,28 @@ namespace NuKeeper.Integration.Tests.Engine
             var lookupResult = new PackageLookupResult(VersionChange.Major, majorUpdate, null, null);
 
             return new PackageUpdateSet(lookupResult, currentPackages);
+        }
+
+        class CommitUpdateMessageTemplateStub : CommitUpdateMessageTemplate
+        {
+            private readonly IEnumerable<PackageUpdateSet> _updates;
+            private IEnumerator<PackageUpdateSet> _enumerator;
+
+            public CommitUpdateMessageTemplateStub(IEnumerable<PackageUpdateSet> updates)
+            {
+                _updates = updates;
+                _enumerator = updates.GetEnumerator();
+            }
+
+            public override string Output()
+            {
+                if (_enumerator.MoveNext())
+                {
+                    return $"Automatic update of {_enumerator.Current.SelectedId} to {_enumerator.Current.SelectedVersion}";
+                }
+
+                return string.Empty;
+            }
         }
     }
 }

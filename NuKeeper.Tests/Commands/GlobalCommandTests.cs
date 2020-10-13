@@ -1,50 +1,53 @@
 using NSubstitute;
-using NuKeeper.Abstractions.CollaborationPlatform;
+using NUnit.Framework;
 using NuKeeper.Abstractions.Configuration;
-using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.Output;
-using NuKeeper.Collaboration;
+using NuKeeper.AzureDevOps;
 using NuKeeper.Commands;
 using NuKeeper.GitHub;
-using NuKeeper.Inspection.Logging;
-using NUnit.Framework;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using NuKeeper.Abstractions.Git;
-using NuKeeper.AzureDevOps;
+using System;
 
 namespace NuKeeper.Tests.Commands
 {
     [TestFixture]
-    public class GlobalCommandTests
+#pragma warning disable CA1812
+    class GlobalCommandTests : CommandTestsBase<GlobalCommand>
     {
-        private static CollaborationFactory GetCollaborationFactory(Func<IGitDiscoveryDriver, IEnvironmentVariablesProvider, ISettingsReader> createSettingsReader)
-        {
-            var environmentVariablesProvider = Substitute.For<IEnvironmentVariablesProvider>();
+        string _apiEndpoint;
+        string _include;
 
-            return new CollaborationFactory(
-                new ISettingsReader[] { createSettingsReader(new MockedGitDiscoveryDriver(), environmentVariablesProvider) },
-                Substitute.For<INuKeeperLogger>()
-            );
+        protected override GlobalCommand MakeCommand()
+        {
+            return new GlobalCommand(_collaborationEngine, _logger, _fileSettings, _realCollaborationFactory);
+        }
+
+        protected override void ConfigureCommand(GlobalCommand command)
+        {
+            command.PersonalAccessToken = "testToken";
+            if (_apiEndpoint != null) command.ApiEndpoint = _apiEndpoint;
+            if (_include != null) command.Include = _include;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _apiEndpoint = null;
+            _include = null;
         }
 
         [Test]
         public async Task ShouldCallEngineAndNotSucceedWithoutParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            var command = new GlobalCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new GitHubSettingsReader(d, e) });
+            var command = MakeCommand();
 
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(-1));
-            await engine
+            await _collaborationEngine
                 .DidNotReceive()
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -52,14 +55,9 @@ namespace NuKeeper.Tests.Commands
         [Test]
         public async Task ShouldCallEngineAndSucceedWithRequiredGithubParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            var command = new GlobalCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new GitHubSettingsReader(d, e) });
+            var command = MakeCommand();
             command.PersonalAccessToken = "testToken";
             command.Include = "testRepos";
             command.ApiEndpoint = "https://github.contoso.com";
@@ -67,7 +65,7 @@ namespace NuKeeper.Tests.Commands
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(0));
-            await engine
+            await _collaborationEngine
                 .Received(1)
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -75,14 +73,9 @@ namespace NuKeeper.Tests.Commands
         [Test]
         public async Task ShouldCallEngineAndSucceedWithRequiredAzureDevOpsParams()
         {
-            var engine = Substitute.For<ICollaborationEngine>();
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(FileSettings.Empty());
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new AzureDevOpsSettingsReader(d, e));
-
-            var command = new GlobalCommand(engine, logger, fileSettings, collaborationFactory);
+            _fileSettings.GetSettings().Returns(FileSettings.Empty());
+            _realCollaborationFactory = GetCollaborationFactory((d, e) => new[] { new AzureDevOpsSettingsReader(d, e) });
+            var command = MakeCommand();
             command.PersonalAccessToken = "testToken";
             command.Include = "testRepos";
             command.ApiEndpoint = "https://dev.azure.com/org";
@@ -90,7 +83,7 @@ namespace NuKeeper.Tests.Commands
             var status = await command.OnExecute();
 
             Assert.That(status, Is.EqualTo(0));
-            await engine
+            await _collaborationEngine
                 .Received(1)
                 .Run(Arg.Any<SettingsContainer>());
         }
@@ -99,6 +92,8 @@ namespace NuKeeper.Tests.Commands
         public async Task ShouldPopulateSettings()
         {
             var fileSettings = FileSettings.Empty();
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, platformSettings) = await CaptureSettings(fileSettings);
 
@@ -119,6 +114,8 @@ namespace NuKeeper.Tests.Commands
         public async Task EmptyFileResultsInRequiredParams()
         {
             var fileSettings = FileSettings.Empty();
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -137,6 +134,8 @@ namespace NuKeeper.Tests.Commands
         public async Task EmptyFileResultsInDefaultSettings()
         {
             var fileSettings = FileSettings.Empty();
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -153,6 +152,8 @@ namespace NuKeeper.Tests.Commands
             Assert.That(settings.UserSettings.NuGetSources, Is.Null);
             Assert.That(settings.UserSettings.OutputDestination, Is.EqualTo(OutputDestination.Console));
             Assert.That(settings.UserSettings.OutputFormat, Is.EqualTo(OutputFormat.Text));
+            Assert.That(settings.UserSettings.CommitMessageTemplate, Is.Null);
+            Assert.That(settings.UserSettings.Context, Is.Empty);
 
             Assert.That(settings.BranchSettings.BranchNameTemplate, Is.Null);
             Assert.That(settings.BranchSettings.DeleteBranchAfterMerge, Is.EqualTo(true));
@@ -184,6 +185,8 @@ namespace NuKeeper.Tests.Commands
             {
                 Label = new List<string> { "testLabel" }
             };
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -202,6 +205,8 @@ namespace NuKeeper.Tests.Commands
                 IncludeRepos = "foo",
                 ExcludeRepos = "bar"
             };
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -220,6 +225,8 @@ namespace NuKeeper.Tests.Commands
             {
                 MaxPackageUpdates = 42
             };
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -235,6 +242,8 @@ namespace NuKeeper.Tests.Commands
             {
                 MaxRepo = 42
             };
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
@@ -252,36 +261,14 @@ namespace NuKeeper.Tests.Commands
             {
                 BranchNameTemplate = testTemplate
             };
+            _apiEndpoint = "http://github.contoso.com/";
+            _include = "testRepos";
 
             var (settings, _) = await CaptureSettings(fileSettings);
 
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.BranchSettings, Is.Not.Null);
             Assert.That(settings.BranchSettings.BranchNameTemplate, Is.EqualTo(testTemplate));
-        }
-
-        public static async Task<(SettingsContainer settingsContainer, CollaborationPlatformSettings platformSettings)> CaptureSettings(FileSettings settingsIn)
-        {
-            var logger = Substitute.For<IConfigureLogger>();
-            var fileSettings = Substitute.For<IFileSettingsCache>();
-            fileSettings.GetSettings().Returns(settingsIn);
-
-            var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
-
-            SettingsContainer settingsOut = null;
-            var engine = Substitute.For<ICollaborationEngine>();
-            await engine.Run(Arg.Do<SettingsContainer>(x => settingsOut = x));
-
-            var command = new GlobalCommand(engine, logger, fileSettings, collaborationFactory)
-            {
-                PersonalAccessToken = "testToken",
-                ApiEndpoint = settingsIn.Api ?? "http://github.contoso.com/",
-                Include = settingsIn.Include ?? "testRepos"
-            };
-
-            await command.OnExecute();
-
-            return (settingsOut, collaborationFactory.Settings);
         }
     }
 }

@@ -3,7 +3,7 @@ using NuKeeper.Abstractions.CollaborationModels;
 
 #pragma warning disable CA1054
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     public static class RepositoryBuilder
     {

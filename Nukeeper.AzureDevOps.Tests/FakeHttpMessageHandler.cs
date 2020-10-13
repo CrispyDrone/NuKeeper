@@ -2,7 +2,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     public class FakeHttpMessageHandler : DelegatingHandler
     {

@@ -2,11 +2,11 @@ using McMaster.Extensions.CommandLineUtils;
 using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
+using NuKeeper.Collaboration;
 using NuKeeper.Inspection.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using NuKeeper.Collaboration;
 
 namespace NuKeeper.Commands
 {
@@ -59,11 +59,22 @@ namespace NuKeeper.Commands
             Description = "Deletes branch created by NuKeeper after merge. Defaults to true.")]
         public bool? DeleteBranchAfterMerge { get; set; }
 
+        [Option(CommandOptionType.SingleValue, ShortName = "prtt", LongName = "pullrequesttitletemplate",
+            Description = "Mustache template used for creating the pull request title.")]
+        public string PullRequestTitleTemplate { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "prbt", LongName = "pullrequestbodytemplate",
+            Description = "Mustache template used for creating the pull request body.")]
+        public string PullRequestBodyTemplate { get; set; }
+
         private HashSet<Platform> _platformsSupportingDeleteBranchAfterMerge = new HashSet<Platform>();
 
-        protected CollaborationPlatformCommand(ICollaborationEngine engine, IConfigureLogger logger,
-            IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory) :
-            base(logger, fileSettingsCache)
+        protected CollaborationPlatformCommand(
+            ICollaborationEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache,
+            ICollaborationFactory collaborationFactory
+        ) : base(logger, fileSettingsCache)
         {
             _engine = engine;
             CollaborationFactory = collaborationFactory;
@@ -71,6 +82,12 @@ namespace NuKeeper.Commands
             _platformsSupportingDeleteBranchAfterMerge.Add(Abstractions.CollaborationPlatform.Platform.Bitbucket);
             _platformsSupportingDeleteBranchAfterMerge.Add(Abstractions.CollaborationPlatform.Platform.GitLab);
             _platformsSupportingDeleteBranchAfterMerge.Add(Abstractions.CollaborationPlatform.Platform.Gitea);
+        }
+
+        protected override async Task<int> Run(SettingsContainer settings)
+        {
+            await _engine.Run(settings);
+            return 0;
         }
 
         protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
@@ -83,9 +100,23 @@ namespace NuKeeper.Commands
 
             var fileSettings = FileSettingsCache.GetSettings();
 
-            var endpoint = Concat.FirstValue(ApiEndpoint, fileSettings.Api, settings.SourceControlServerSettings.Repository?.ApiUri.ToString());
+            var endpoint = Coalesce.FirstValueOrDefault(ApiEndpoint, fileSettings.Api, settings.SourceControlServerSettings.Repository?.ApiUri.ToString());
             var forkMode = ForkMode ?? fileSettings.ForkMode;
             var platform = Platform ?? fileSettings.Platform;
+
+            // todo: validation?
+            var pullRequestTitleTemplate = Coalesce.FirstValueOrDefault(
+                PullRequestTitleTemplate,
+                fileSettings.PullRequestTitleTemplate
+            );
+            settings.UserSettings.PullRequestTitleTemplate = pullRequestTitleTemplate;
+
+            // todo: validation?
+            var pullRequestBodyTemplate = Coalesce.FirstValueOrDefault(
+                PullRequestBodyTemplate,
+                fileSettings.PullRequestBodyTemplate
+            );
+            settings.UserSettings.PullRequestBodyTemplate = pullRequestBodyTemplate;
 
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri))
             {
@@ -95,8 +126,15 @@ namespace NuKeeper.Commands
             try
             {
                 var collaborationResult = await CollaborationFactory.Initialise(
-                    baseUri, PersonalAccessToken,
-                    forkMode, platform);
+                    baseUri,
+                    PersonalAccessToken,
+                    forkMode,
+                    platform,
+                    settings.UserSettings.CommitMessageTemplate,
+                    settings.UserSettings.PullRequestTitleTemplate,
+                    settings.UserSettings.PullRequestBodyTemplate,
+                    settings.UserSettings.Context
+                );
 
                 if (!collaborationResult.IsSuccess)
                 {
@@ -115,19 +153,19 @@ namespace NuKeeper.Commands
                 return ValidationResult.Failure("The required access token was not found");
             }
 
-            var consolidate = 
-                Concat.FirstValue(Consolidate, fileSettings.Consolidate, false);
+            var consolidate =
+                Coalesce.FirstValueOrDefault(Consolidate, fileSettings.Consolidate, false);
 
             settings.UserSettings.ConsolidateUpdatesInSinglePullRequest = consolidate;
 
             const int defaultMaxPackageUpdates = 3;
-            var maxPackageUpdates = 
-                Concat.FirstValue(MaxPackageUpdates, fileSettings.MaxPackageUpdates, defaultMaxPackageUpdates);
+            var maxPackageUpdates =
+                Coalesce.FirstValueOrDefault(MaxPackageUpdates, fileSettings.MaxPackageUpdates, defaultMaxPackageUpdates);
 
             settings.PackageFilters.MaxPackageUpdates = maxPackageUpdates;
 
             const int defaultMaxOpenPullRequests = 1;
-            settings.UserSettings.MaxOpenPullRequests = Concat.FirstValue(
+            settings.UserSettings.MaxOpenPullRequests = Coalesce.FirstValueOrDefault(
                 MaxOpenPullRequests,
                 fileSettings.MaxOpenPullRequests,
                 consolidate ?
@@ -138,7 +176,7 @@ namespace NuKeeper.Commands
             var defaultLabels = new List<string> { "nukeeper" };
 
             settings.SourceControlServerSettings.Labels =
-                Concat.FirstPopulatedList(Label, fileSettings.Label, defaultLabels);
+                Coalesce.FirstPopulatedListOrDefault(Label, fileSettings.Label, defaultLabels);
 
             var deleteBranchAfterMergeValid = PopulateDeleteBranchAfterMerge(settings);
             if (!deleteBranchAfterMergeValid.IsSuccess)
@@ -146,17 +184,11 @@ namespace NuKeeper.Commands
                 return deleteBranchAfterMergeValid;
             }
 
-            settings.SourceControlServerSettings.Reviewers = Concat.FirstPopulatedList(
+            settings.SourceControlServerSettings.Reviewers = Coalesce.FirstPopulatedListOrDefault(
                 Reviewers, fileSettings.Reviewers
             );
 
             return ValidationResult.Success;
-        }
-
-        protected override async Task<int> Run(SettingsContainer settings)
-        {
-            await _engine.Run(settings);
-            return 0;
         }
 
         private ValidationResult PopulateDeleteBranchAfterMerge(
@@ -176,7 +208,7 @@ namespace NuKeeper.Commands
                 defaultValue = true;
             }
 
-            settings.BranchSettings.DeleteBranchAfterMerge = Concat.FirstValue(DeleteBranchAfterMerge, fileSettings.DeleteBranchAfterMerge, defaultValue);
+            settings.BranchSettings.DeleteBranchAfterMerge = Coalesce.FirstValueOrDefault(DeleteBranchAfterMerge, fileSettings.DeleteBranchAfterMerge, defaultValue);
 
             // Ensure that the resulting DeleteBranchAfterMerge value is supported.
             if (settings.BranchSettings.DeleteBranchAfterMerge &&

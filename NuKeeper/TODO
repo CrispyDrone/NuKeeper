@@ -1,0 +1,25 @@
+cli:
+
+design:
+
+tests:
+	☐ Write some tests for bitbucket template?? Optional...
+
+bugs:
+	☐ Incorrect MSBuild version unless NuKeeper is run after invoking VsDevCommand.bat?? @context(MSBuild auto-detection: using msbuild version '4.8.4084.0 built by: NET48REL1' from 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319'. The imported project "C:\Program Files (x86)\MSBuild\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" was not found. Confirm that the path in the <Import> declaration is correct, and that the file exists on disk.  C:\Users\bbullens\AppData\Local\Temp\NuKeeper\repo-836485ae0ef144b0b9c478e0a2cb46f4\Interparking.WebSubscription.Web\Interparking.WebSubscription.Web.csproj")
+	☐ Empty commit exception
+
+templates:
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+Archive:
+	✓ Finish bitbucket template @done(2020-10-13 23:57) @project(templates)
+	✓ Somehow, the commit message expresses that there are multiple updates, even though there's only 1 package being updated @context("chore: Update 5 packages") @done(2020-10-04 23:54) @project(bugs) @fix(forgot to use Clear in existing commit filter etc...)
+	✘ properly support arrays, objects, delegates. Currently it seems impossible to pass a "json" argument `_delegates={ "50char": "..." }` on the command line @cancelled(2020-10-04 22:46) @project(cli) @reason(It probably is possible?? You just need perfect quoting, and I don't know how to do that for cmd)
+	✓ is it fine to use `_delegates` in the configuration file? @reason(yes, delegates are special compared to arrays and objects since they need to be interpreted. Objects and arrays don't have to be interpreted by the csharp engine.) @done(2020-10-04 22:45) @project(design)
+	✓ Test custom pull request title message @done(2020-10-04 22:45) @project(tests)
+	✓ Test custom pull request body message @done(2020-10-04 22:45) @project(tests)
+	✓ Test custom commit message @done(2020-10-04 22:45) @project(tests)
+	✓ review the usage of enrichers + templates. How should they be used together? Should they both be taken as a dependency in the constructor,... @done(2020-08-30 14:37) @project(design)
+	✓ Rethink the design __again__. A context enricher and the actual template __belong__ together?? @done(2020-08-26 18:24) @project(design)
+	✓ write integration test for interpretation of file configuration + template rendering @done(2020-08-23 12:30) @project(tests)

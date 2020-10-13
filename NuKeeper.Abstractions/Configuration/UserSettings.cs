@@ -1,5 +1,6 @@
 using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.Output;
+using System.Collections.Generic;
 
 namespace NuKeeper.Abstractions.Configuration
 {
@@ -24,5 +25,10 @@ namespace NuKeeper.Abstractions.Configuration
         public string Directory { get; set; }
 
         public string GitPath { get; set; }
+
+        public string CommitMessageTemplate { get; set; }
+        public string PullRequestTitleTemplate { get; set; }
+        public string PullRequestBodyTemplate { get; set; }
+        public IDictionary<string, object> Context { get; } = new Dictionary<string, object>();
     }
 }

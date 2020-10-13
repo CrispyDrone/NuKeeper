@@ -18,8 +18,13 @@ namespace NuKeeper.Commands
     {
         private readonly IEnumerable<ISettingsReader> _settingsReaders;
 
-        public RepositoryCommand(ICollaborationEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory, IEnumerable<ISettingsReader> settingsReaders)
-            : base(engine, logger, fileSettingsCache, collaborationFactory)
+        public RepositoryCommand(
+            ICollaborationEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache,
+            ICollaborationFactory collaborationFactory,
+            IEnumerable<ISettingsReader> settingsReaders
+        ) : base(engine, logger, fileSettingsCache, collaborationFactory)
         {
             _settingsReaders = settingsReaders;
         }

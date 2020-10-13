@@ -35,7 +35,7 @@ namespace NuKeeper.BitBucket
 
             settings.Username = Username;
             var envToken = _environmentVariablesProvider.GetEnvironmentVariable("NuKeeper_bitbucket_token");
-            settings.Token = Concat.FirstValue(envToken, settings.Token);
+            settings.Token = Coalesce.FirstValueOrDefault(envToken, settings.Token);
             settings.ForkMode = settings.ForkMode ?? ForkMode.SingleRepositoryOnly;
         }
 

@@ -30,6 +30,8 @@ namespace NuKeeper.Tests.Engine.Packages
         private INuKeeperLogger _logger;
         private IGitDriver _gitDriver;
         private IUpdateRunner _updateRunner;
+        private IEnrichContext<PackageUpdateSet, UpdateMessageTemplate> _enricher;
+        private IEnrichContext<IReadOnlyCollection<PackageUpdateSet>, UpdateMessageTemplate> _multiEnricher;
 
         [SetUp]
         public void Initialize()
@@ -40,6 +42,8 @@ namespace NuKeeper.Tests.Engine.Packages
             _logger = Substitute.For<INuKeeperLogger>();
             _gitDriver = Substitute.For<IGitDriver>();
             _updateRunner = Substitute.For<IUpdateRunner>();
+            _enricher = Substitute.For<IEnrichContext<PackageUpdateSet, UpdateMessageTemplate>>();
+            _multiEnricher = Substitute.For<IEnrichContext<IReadOnlyCollection<PackageUpdateSet>, UpdateMessageTemplate>>();
 
             _existingCommitFilter
                 .Filter(
@@ -52,6 +56,15 @@ namespace NuKeeper.Tests.Engine.Packages
             _collaborationFactory.CollaborationPlatform
                 .PullRequestExists(Arg.Any<ForkData>(), Arg.Any<string>(), Arg.Any<string>())
                 .Returns(false);
+            _collaborationFactory
+                .CommitTemplate
+                .Returns(new CommitUpdateMessageTemplate());
+            _collaborationFactory
+                .PullRequestBodyTemplate
+                .Returns(new DefaultPullRequestTitleTemplate());
+            _collaborationFactory
+                .PullRequestTitleTemplate
+                .Returns(new DefaultPullRequestBodyTemplate());
         }
 
         [Test]
@@ -99,9 +112,12 @@ namespace NuKeeper.Tests.Engine.Packages
         {
             return new SettingsContainer
             {
-                UserSettings = new UserSettings(),
+                UserSettings = new UserSettings
+                {
+                    MaxOpenPullRequests = int.MaxValue
+                },
                 BranchSettings = new BranchSettings(),
-                SourceControlServerSettings = new SourceControlServerSettings()
+                SourceControlServerSettings = new SourceControlServerSettings(),
             };
         }
 
@@ -286,6 +302,8 @@ namespace NuKeeper.Tests.Engine.Packages
                 _collaborationFactory,
                 _existingCommitFilter,
                 _updateRunner,
+                _enricher,
+                _multiEnricher,
                 _logger
             );
         }

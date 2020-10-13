@@ -9,10 +9,9 @@ using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Formats;
 using NuKeeper.Abstractions.Logging;
-using NuKeeper.AzureDevOps;
 using NUnit.Framework;
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     public class AzureDevOpsRepositoryDiscoveryTests
     {

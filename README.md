@@ -2,7 +2,7 @@
 
 Automagically update NuGet packages in all .NET projects.
 
-This fork includes additional features and fixes that have not been integrated in the main repository of NuKeeper at the time of writing. This fork is only intended to temporarily bridge this gap. As soon as the NuKeeper provides the same benefits, this fork can be deleted.
+This fork includes additional features and fixes that have not been integrated in the main repository of NuKeeper at the time of writing. This fork is only intended to temporarily bridge this gap. As soon as NuKeeper provides the same benefits, this fork can be deleted.
 
 Additional features:
 
@@ -10,6 +10,7 @@ Additional features:
 + Support `--reviewer` for AzureDevops/TFS for all commands that create pull requests
 + Fixed issue with `--change minor` or `--change patch` resulting in incorrect major or minor updates when multiple versions installed in different projects already differ in minor or major versions.
 + Support `--maxopenpullrequests` for AzureDevops/TFS for all commands that create pull requests
++ Support custom templates for commit messages, pull request title, and pull request body. The templates can be specified in [mustache](https://mustache.github.io/), we use the [Stubble engine](https://github.com/StubbleOrg/Stubble).
 
 ## How To Build and Run From Source
 

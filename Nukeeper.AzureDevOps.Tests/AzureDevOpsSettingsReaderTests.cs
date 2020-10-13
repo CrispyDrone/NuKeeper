@@ -4,11 +4,10 @@ using NSubstitute;
 using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
-using NuKeeper.AzureDevOps;
 using NuKeeper.Tests;
 using NUnit.Framework;
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     [TestFixture]
     public class AzureDevOpsSettingsReaderTests

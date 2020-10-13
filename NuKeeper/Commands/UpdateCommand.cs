@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using NuKeeper.Abstractions;
+using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Inspection.Logging;
 using NuKeeper.Local;
@@ -16,8 +17,11 @@ namespace NuKeeper.Commands
 
         private readonly ILocalEngine _engine;
 
-        public UpdateCommand(ILocalEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache)
-            : base(logger, fileSettingsCache)
+        public UpdateCommand(
+            ILocalEngine engine,
+            IConfigureLogger logger,
+            IFileSettingsCache fileSettingsCache
+        ) : base(logger, fileSettingsCache)
         {
             _engine = engine;
         }
@@ -33,7 +37,7 @@ namespace NuKeeper.Commands
             const int defaultMaxPackageUpdates = 1;
             var fileSettings = FileSettingsCache.GetSettings();
 
-            var maxUpdates = Concat.FirstValue(
+            var maxUpdates = Coalesce.FirstValueOrDefault(
                 MaxPackageUpdates,
                 fileSettings.MaxPackageUpdates,
                 defaultMaxPackageUpdates);

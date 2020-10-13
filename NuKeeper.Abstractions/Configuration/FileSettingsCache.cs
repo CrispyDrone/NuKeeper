@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 namespace NuKeeper.Abstractions.Configuration
@@ -24,7 +25,9 @@ namespace NuKeeper.Abstractions.Configuration
 
         private static string GetFolder()
         {
-            return Directory.GetCurrentDirectory();
+            var dir = Directory.GetCurrentDirectory();
+            Console.WriteLine(dir);
+            return dir;
         }
     }
 }

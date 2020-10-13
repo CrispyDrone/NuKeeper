@@ -1,8 +1,7 @@
 using Newtonsoft.Json;
-using NuKeeper.AzureDevOps;
 using NUnit.Framework;
 
-namespace Nukeeper.AzureDevOps.Tests
+namespace NuKeeper.AzureDevOps.Tests
 {
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
