@@ -262,7 +262,7 @@ namespace NuKeeper.AzureDevOps
                 user = await GetUserByMail("bot@nukeeper.com");
             }
 
-            var prs = await _client.GetPullRequests(
+            var prs = await GetPullRequestsForUser(
                 projectName,
                 repositoryName,
                 user == User.Default ?
@@ -288,6 +288,20 @@ namespace NuKeeper.AzureDevOps
             else
             {
                 return prs?.Count() ?? 0;
+            }
+        }
+
+        private async Task<IEnumerable<PullRequest>> GetPullRequestsForUser(string projectName, string repositoryName, string userName)
+        {
+            try
+            {
+                return await _client.GetPullRequests(projectName, repositoryName, userName);
+
+            }
+            catch (NuKeeperException ex)
+            {
+                _logger.Error($"Failed to get pull requests for name {userName}", ex);
+                return Enumerable.Empty<PullRequest>();
             }
         }
     }
