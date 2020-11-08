@@ -77,33 +77,24 @@ namespace NuKeeper.Engine.Packages
 
             int totalCount = 0;
 
-            try
-            {
-                var groups = UpdateConsolidator.Consolidate(updates,
-                    settings.UserSettings.ConsolidateUpdatesInSinglePullRequest);
+            var groups = UpdateConsolidator.Consolidate(updates,
+                settings.UserSettings.ConsolidateUpdatesInSinglePullRequest);
 
-                foreach (var updateSets in groups)
+            foreach (var updateSets in groups)
+            {
+                var (updatesMade, pullRequestCreated) = await MakeUpdatePullRequests(
+                    git, repository,
+                    sources, settings, updateSets);
+
+                totalCount += updatesMade;
+
+                if (pullRequestCreated)
+                    openPrs++;
+
+                if (openPrs == allowedPrs)
                 {
-                    var (updatesMade, pullRequestCreated) = await MakeUpdatePullRequests(
-                        git, repository,
-                        sources, settings, updateSets);
-
-                    totalCount += updatesMade;
-
-                    if (pullRequestCreated)
-                        openPrs++;
-
-                    if (openPrs == allowedPrs)
-                    {
-                        return (totalCount, true);
-                    }
+                    return (totalCount, true);
                 }
-            }
-#pragma warning disable CA1031
-            catch (Exception ex)
-#pragma warning restore CA1031
-            {
-                _logger.Error("Updates failed", ex);
             }
 
             return (totalCount, false);
