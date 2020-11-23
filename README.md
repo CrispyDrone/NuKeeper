@@ -6,11 +6,11 @@ This fork includes additional features and fixes that have not been integrated i
 
 Additional features:
 
-+ Support `--targetBranch` for TFS while using the repository command and providing a remote url
 + Support `--reviewer` for AzureDevops/TFS for all commands that create pull requests
-+ Fixed issue with `--change minor` or `--change patch` resulting in incorrect major or minor updates when multiple versions installed in different projects already differ in minor or major versions.
 + Support `--maxopenpullrequests` for AzureDevops/TFS for all commands that create pull requests
 + Support custom templates for commit messages, pull request title, and pull request body. The templates can be specified in [mustache](https://mustache.github.io/), we use the [Stubble engine](https://github.com/StubbleOrg/Stubble).
++ ~~Support `--targetBranch` for TFS while using the repository command and providing a remote url~~ Now included in nukeeper.
++ ~~Fixed issue with `--change minor` or `--change patch` resulting in incorrect major or minor updates when multiple versions installed in different projects already differ in minor or major versions.~~ Now included in nukeeper.
 
 ## How To Build and Run From Source
 
