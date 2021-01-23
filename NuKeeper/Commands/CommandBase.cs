@@ -85,6 +85,10 @@ namespace NuKeeper.Commands
             Description = "Path to git to use instead of lib2gitsharp implementation")]
         public string GitCliPath { get; set; }
 
+        // TODO
+        [Option(CommandOptionType.MultipleValue, ShortName = "", LongName = "path", Description = "Directory path containing the files targetted for updates by nukeeper. You should use this if you have a monorepository and want to limit updates to one or more of its consistuent \"modules\" instead of the entire repository. Specify multiple directories to update multiple modules.")]
+        public string[] Paths { get; set; }
+
         protected CommandBase(IConfigureLogger logger, IFileSettingsCache fileSettingsCache)
         {
             _configureLogger = logger;
