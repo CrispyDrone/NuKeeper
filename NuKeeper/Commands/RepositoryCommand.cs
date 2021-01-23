@@ -1,32 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 using McMaster.Extensions.CommandLineUtils;
-
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
-using NuKeeper.Abstractions.Formats;
-using NuKeeper.Collaboration;
-using NuKeeper.Inspection.Logging;
+using NuKeeper.Abstractions.Logging;
+using NuKeeper.Abstractions.NuGet;
+using NuKeeper.Abstractions.Output;
+using System.Collections.Generic;
+using LogLevel = NuKeeper.Abstractions.Logging.LogLevel;
 
 namespace NuKeeper.Commands
 {
     [Command("repo", "r", "repository", Description = "Performs version checks and generates pull requests for a single repository.")]
-    internal class RepositoryCommand : CollaborationPlatformCommand
+    sealed internal class RepositoryCommand
     {
         [Option(CommandOptionType.NoValue, ShortName = "", LongName = "setautomerge",
             Description = "Set automatically auto merge for created pull request. Works only for Azure Devops. Defaults to false.")]
         public bool? SetAutoMerge { get; set; }
-
-        private readonly IEnumerable<ISettingsReader> _settingsReaders;
-
-        public RepositoryCommand(ICollaborationEngine engine, IConfigureLogger logger, IFileSettingsCache fileSettingsCache, ICollaborationFactory collaborationFactory, IEnumerable<ISettingsReader> settingsReaders)
-            : base(engine, logger, fileSettingsCache, collaborationFactory)
-        {
-            _settingsReaders = settingsReaders;
-        }
 
         [Argument(0, Name = "Repository URI", Description = "The URI of the repository to scan.")]
         public string RepositoryUri { get; set; }
@@ -36,71 +24,113 @@ namespace NuKeeper.Commands
         public string TargetBranch { get; set; }
 
         [Option(CommandOptionType.SingleValue, ShortName = "cdir", Description = "If you want NuKeeper to check out the repository to an alternate path, set it here (by default, a temporary directory is used).")]
-        protected string CheckoutDirectory { get; set; }
+        public string CheckoutDirectory { get; set; }
 
-        protected override async Task<ValidationResult> PopulateSettings(SettingsContainer settings)
-        {
-            if (string.IsNullOrWhiteSpace(RepositoryUri))
-            {
-                return ValidationResult.Failure($"Missing repository URI");
-            }
+        [Argument(1, Name = "Token",
+            Description = "Personal access token to authorise access to server.")]
+        public string PersonalAccessToken { get; set; }
 
-            Uri repoUri;
+        [Option(CommandOptionType.SingleValue, ShortName = "f", LongName = "fork",
+            Description =
+                "Prefer to make branches on a fork of the writer repository, or on that repository itself. Allowed values are PreferFork, PreferSingleRepository, SingleRepositoryOnly.")]
+        public ForkMode? ForkMode { get; set; }
 
-            try
-            {
-                repoUri = RepositoryUri.ToUri();
-            }
-            catch (UriFormatException)
-            {
-                return ValidationResult.Failure($"Bad repository URI: '{RepositoryUri}'");
-            }
+        [Option(CommandOptionType.SingleValue, ShortName = "m", LongName = "maxpackageupdates",
+            Description = "The maximum number of package updates to apply on one repository. Defaults to 3.")]
+        public int? MaxPackageUpdates { get; set; }
 
-            ISettingsReader reader = await TryGetSettingsReader(repoUri, Platform);
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "maxopenpullrequests",
+            Description = "The maximum number of open pull requests for one repository. Defaults to 1 if `--consolidate` is specified, otherwise defaults to `--maxpackageupdates`.")]
+        public int? MaxOpenPullRequests { get; set; }
 
-            if (reader == null)
-            {
-                return ValidationResult.Failure($"Unable to work out which platform to use {RepositoryUri} could not be matched");
-            }
+        [Option(CommandOptionType.NoValue, ShortName = "n", LongName = "consolidate",
+            Description = "Consolidate updates into a single pull request. Defaults to false.")]
+        public bool? Consolidate { get; set; }
 
-            settings.SourceControlServerSettings.Repository = await reader.RepositorySettings(repoUri, SetAutoMerge ?? false, TargetBranch);
+        [Option(CommandOptionType.MultipleValue, ShortName = "l", LongName = "label",
+            Description =
+                "Label to apply to GitHub pull requests. Defaults to 'nukeeper'. Multiple labels can be provided by specifying this option multiple times.")]
+        public List<string> Label { get; set; }
 
-            var baseResult = await base.PopulateSettings(settings);
-            if (!baseResult.IsSuccess)
-            {
-                return baseResult;
-            }
+        [Option(CommandOptionType.SingleValue, ShortName = "g", LongName = "api",
+            Description =
+                "Api Base Url. If you are using an internal server and not a public one, you must set it to the api url of your server.")]
+        public string ApiEndpoint { get; set; }
 
-            if (settings.SourceControlServerSettings.Repository == null)
-            {
-                return ValidationResult.Failure($"Could not read repository URI: '{RepositoryUri}'");
-            }
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "platform",
+            Description = "Sets the collaboration platform type. By default this is inferred from the Url.")]
+        public Platform? Platform { get; set; }
 
-            settings.SourceControlServerSettings.Scope = ServerScope.Repository;
-            settings.UserSettings.MaxRepositoriesChanged = 1;
-            settings.UserSettings.Directory = CheckoutDirectory;
+        [Option(CommandOptionType.SingleValue, ShortName = "d", LongName = "deletebranchaftermerge",
+            Description = "Deletes branch created by NuKeeper after merge. Defaults to true.")]
+        public bool? DeleteBranchAfterMerge { get; set; }
 
-            return ValidationResult.Success;
-        }
+        [Option(CommandOptionType.SingleValue, ShortName = "c", LongName = "change",
+            Description = "Allowed version change: Patch, Minor, Major. Defaults to Major.")]
+        public VersionChange? AllowedChange { get; set; }
 
-        private async Task<ISettingsReader> TryGetSettingsReader(Uri repoUri, Platform? platform)
-        {
-            // If the platform was specified explicitly, get the reader by platform.
-            if (platform.HasValue)
-            {
-                return _settingsReaders.Single(s => s.Platform == Platform);
-            }
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "useprerelease",
+            Description = "Allowed prerelease: Always, Never, FromPrerelease. Defaults to FromPrerelease.")]
+        public UsePrerelease? UsePrerelease { get; set; }
 
-            // Otherwise, use the Uri to guess which platform to use.
-            foreach (var reader in _settingsReaders)
-            {
-                if (await reader.CanRead(repoUri))
-                {
-                    return reader;
-                }
-            }
+        [Option(CommandOptionType.MultipleValue, ShortName = "s", LongName = "source",
+            Description =
+                "Specifies a NuGet package source to use during the operation. This setting overrides all of the sources specified in the NuGet.config files. Multiple sources can be provided by specifying this option multiple times.")]
+        // ReSharper disable once UnassignedGetOnlyAutoProperty
+        // ReSharper disable once MemberCanBePrivate.Global
+        public string[] Source { get; }
 
-            return null;
-        }
+        public NuGetSources NuGetSources => Source == null ? null : new NuGetSources(Source);
+
+        [Option(CommandOptionType.SingleValue, ShortName = "a", LongName = "age",
+            Description = "Exclude updates that do not meet a minimum age, in order to not consume packages immediately after they are released. Examples: 0 = zero, 12h = 12 hours, 3d = 3 days, 2w = two weeks. The default is 7 days.")]
+        // ReSharper disable once UnassignedGetOnlyAutoProperty
+        // ReSharper disable once MemberCanBePrivate.Global
+        public string MinimumPackageAge { get; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "i", LongName = "include",
+            Description = "Only consider packages matching this regex pattern.")]
+        public string Include { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "e", LongName = "exclude",
+            Description = "Do not consider packages matching this regex pattern.")]
+        public string Exclude { get; set; }
+
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "outputformat",
+            Description = "Format for output.")]
+        public OutputFormat? OutputFormat { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "outputdestination",
+            Description = "Destination for output.")]
+        public OutputDestination? OutputDestination { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "outputfile",
+            Description = "File name for output.")]
+        public string OutputFileName { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "branchnametemplate",
+            Description = "Template used for creating the branch name.")]
+        public string BranchNameTemplate { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "git", LongName = "gitclipath",
+            Description = "Path to git to use instead of lib2gitsharp implementation")]
+        public string GitCliPath { get; set; }
+
+        // TODO
+        [Option(CommandOptionType.MultipleValue, ShortName = "", LongName = "path", Description = "Directory path containing the files targetted for updates by nukeeper. You should use this if you have a monorepository and want to limit updates to one or more of its consistuent \"modules\" instead of the entire repository. Specify multiple directories to update multiple modules.")]
+        public string[] Paths { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "v", LongName = "verbosity",
+            Description = "Sets the verbosity level of the command. Allowed values are q[uiet], m[inimal], n[ormal], d[etailed].")]
+        public LogLevel? Verbosity { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "logdestination",
+            Description = "Destination for logging.")]
+        public LogDestination? LogDestination { get; set; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "logfile",
+            Description = "Log to the named file.")]
+        public string LogFile { get; set; }
     }
 }
