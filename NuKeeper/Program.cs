@@ -19,7 +19,7 @@ namespace NuKeeper
     [Subcommand(typeof(InspectCommand))]
     [Subcommand(typeof(UpdateCommand))]
     [Subcommand(typeof(RepositoryCommand))]
-    [Subcommand(typeof(OrganisationCommand))]
+    [Subcommand(typeof(OrganizationCommand))]
     [Subcommand(typeof(GlobalCommand))]
     public class Program
     {

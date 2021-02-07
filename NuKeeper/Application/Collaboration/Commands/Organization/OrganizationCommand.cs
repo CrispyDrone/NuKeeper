@@ -6,10 +6,10 @@ using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.Output;
 using System.Collections.Generic;
 
-namespace NuKeeper.Commands
+namespace NuKeeper.Application.Collaboration.Commands.Organization
 {
     [Command("org", "o", "organization", "organisation", Description = "Performs version checks and generates pull requests for all repositories in a github organisation or an Azure DevOps project.")]
-    sealed internal class OrganisationCommand
+    sealed internal class OrganizationCommand
     {
         [Option(CommandOptionType.SingleValue, ShortName = "c", LongName = "change",
             Description = "Allowed version change: Patch, Minor, Major. Defaults to Major.")]

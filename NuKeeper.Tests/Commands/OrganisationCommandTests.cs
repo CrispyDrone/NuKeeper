@@ -43,7 +43,7 @@ namespace NuKeeper.Tests.Commands
             fileSettings.GetSettings().Returns(FileSettings.Empty());
             var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
 
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            var command = new OrganizationCommand(engine, logger, fileSettings, collaborationFactory);
 
             var status = await command.OnExecute();
 
@@ -63,7 +63,7 @@ namespace NuKeeper.Tests.Commands
 
             var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
 
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            var command = new OrganizationCommand(engine, logger, fileSettings, collaborationFactory);
             command.PersonalAccessToken = "abc";
             command.OrganisationName = "testOrg";
 
@@ -85,7 +85,7 @@ namespace NuKeeper.Tests.Commands
 
             var collaborationFactory = GetCollaborationFactory((d, e) => new AzureDevOpsSettingsReader(d, e));
 
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            var command = new OrganizationCommand(engine, logger, fileSettings, collaborationFactory);
             command.PersonalAccessToken = "abc";
             command.OrganisationName = "testOrg";
             command.ApiEndpoint = "https://dev.azure.com/org";
@@ -327,7 +327,7 @@ namespace NuKeeper.Tests.Commands
 
             var collaborationFactory = GetCollaborationFactory((d, e) => new GitHubSettingsReader(d, e));
 
-            var command = new OrganisationCommand(engine, logger, fileSettings, collaborationFactory);
+            var command = new OrganizationCommand(engine, logger, fileSettings, collaborationFactory);
             command.PersonalAccessToken = "testToken";
             command.OrganisationName = "testOrg";
 

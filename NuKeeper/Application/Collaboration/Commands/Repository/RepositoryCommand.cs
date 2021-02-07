@@ -7,7 +7,7 @@ using NuKeeper.Abstractions.Output;
 using System.Collections.Generic;
 using LogLevel = NuKeeper.Abstractions.Logging.LogLevel;
 
-namespace NuKeeper.Commands
+namespace NuKeeper.Application.Collaboration.Commands.Repository
 {
     [Command("repo", "r", "repository", Description = "Performs version checks and generates pull requests for a single repository.")]
     sealed internal class RepositoryCommand

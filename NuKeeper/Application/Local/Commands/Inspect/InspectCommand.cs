@@ -1,15 +1,13 @@
 using McMaster.Extensions.CommandLineUtils;
-using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.Output;
-using System.Collections.Generic;
 
-namespace NuKeeper.Commands
+namespace NuKeeper.Application.Local.Commands.Inspect
 {
-    [Command("global", Description = "Performs version checks and generates pull requests for all repositories the provided token can access.")]
-    sealed internal class GlobalCommand
+    [Command("inspect", "i", Description = "Checks projects existing locally for possible updates.")]
+    sealed internal class InspectCommand
     {
         [Option(CommandOptionType.SingleValue, ShortName = "c", LongName = "change",
             Description = "Allowed version change: Patch, Minor, Major. Defaults to Major.")]
@@ -74,53 +72,10 @@ namespace NuKeeper.Commands
             Description = "Path to git to use instead of lib2gitsharp implementation")]
         public string GitCliPath { get; set; }
 
-        [Argument(1, Name = "Token",
-            Description = "Personal access token to authorise access to server.")]
-        public string PersonalAccessToken { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "f", LongName = "fork",
-            Description =
-                "Prefer to make branches on a fork of the writer repository, or on that repository itself. Allowed values are PreferFork, PreferSingleRepository, SingleRepositoryOnly.")]
-        public ForkMode? ForkMode { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "m", LongName = "maxpackageupdates",
-            Description = "The maximum number of package updates to apply on one repository. Defaults to 3.")]
-        public int? MaxPackageUpdates { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "maxopenpullrequests",
-            Description = "The maximum number of open pull requests for one repository. Defaults to 1 if `--consolidate` is specified, otherwise defaults to `--maxpackageupdates`.")]
-        public int? MaxOpenPullRequests { get; set; }
-
-        [Option(CommandOptionType.NoValue, ShortName = "n", LongName = "consolidate",
-            Description = "Consolidate updates into a single pull request. Defaults to false.")]
-        public bool? Consolidate { get; set; }
-
-        [Option(CommandOptionType.MultipleValue, ShortName = "l", LongName = "label",
-            Description =
-                "Label to apply to GitHub pull requests. Defaults to 'nukeeper'. Multiple labels can be provided by specifying this option multiple times.")]
-        public List<string> Label { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "g", LongName = "api",
-            Description =
-                "Api Base Url. If you are using an internal server and not a public one, you must set it to the api url of your server.")]
-        public string ApiEndpoint { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "platform",
-            Description = "Sets the collaboration platform type. By default this is inferred from the Url.")]
-        public Platform? Platform { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "d", LongName = "deletebranchaftermerge",
-            Description = "Deletes branch created by NuKeeper after merge. Defaults to true.")]
-        public bool? DeleteBranchAfterMerge { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "includerepos", Description = "Only consider repositories matching this regex pattern.")]
-        public string IncludeRepos { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "excluderepos", Description = "Do not consider repositories matching this regex pattern.")]
-        public string ExcludeRepos { get; set; }
-
-        [Option(CommandOptionType.SingleValue, ShortName = "", LongName = "maxrepo",
-            Description = "The maximum number of repositories to change. Defaults to 10.")]
-        public int? MaxRepositoriesChanged { get; set; }
+        [Argument(0, Description = "The path to a .sln or project file, or to a directory containing a .NET solution/project. " +
+               "If none is specified, the current directory will be used.")]
+        // ReSharper disable once UnassignedGetOnlyAutoProperty
+        // ReSharper disable once MemberCanBePrivate.Global
+        public string Path { get; }
     }
 }

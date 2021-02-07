@@ -69,7 +69,7 @@ namespace NuKeeper
         {
             container.Register<GlobalCommand>();
             container.Register<InspectCommand>();
-            container.Register<OrganisationCommand>();
+            container.Register<OrganizationCommand>();
             container.Register<RepositoryCommand>();
             container.Register<UpdateCommand>();
         }

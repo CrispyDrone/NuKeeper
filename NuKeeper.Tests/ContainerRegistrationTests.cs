@@ -34,7 +34,7 @@ namespace NuKeeper.Tests
         [TestCase(typeof(InspectCommand))]
         [TestCase(typeof(UpdateCommand))]
         [TestCase(typeof(RepositoryCommand))]
-        [TestCase(typeof(OrganisationCommand))]
+        [TestCase(typeof(OrganizationCommand))]
         [TestCase(typeof(GlobalCommand))]
         public void CommandsCanBeResolved(Type commandType)
         {

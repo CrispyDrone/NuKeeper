@@ -4,11 +4,21 @@ using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.Output;
 
-namespace NuKeeper.Commands
+namespace NuKeeper.Application.Local.Commands.Update
 {
-    [Command("inspect", "i", Description = "Checks projects existing locally for possible updates.")]
-    sealed internal class InspectCommand
+    [Command("update", Description = "Applies relevant updates to a local project.")]
+    sealed internal class UpdateCommand
     {
+        [Argument(0, Description = "The path to a .sln or project file, or to a directory containing a .NET solution/project. " +
+               "If none is specified, the current directory will be used.")]
+        // ReSharper disable once UnassignedGetOnlyAutoProperty
+        // ReSharper disable once MemberCanBePrivate.Global
+        public string Path { get; }
+
+        [Option(CommandOptionType.SingleValue, ShortName = "m", LongName = "maxpackageupdates",
+            Description = "Maximum number of package updates to make. Defaults to 1.")]
+        public int? MaxPackageUpdates { get; set; }
+
         [Option(CommandOptionType.SingleValue, ShortName = "c", LongName = "change",
             Description = "Allowed version change: Patch, Minor, Major. Defaults to Major.")]
         public VersionChange? AllowedChange { get; set; }
@@ -71,11 +81,5 @@ namespace NuKeeper.Commands
         [Option(CommandOptionType.SingleValue, ShortName = "git", LongName = "gitclipath",
             Description = "Path to git to use instead of lib2gitsharp implementation")]
         public string GitCliPath { get; set; }
-
-        [Argument(0, Description = "The path to a .sln or project file, or to a directory containing a .NET solution/project. " +
-               "If none is specified, the current directory will be used.")]
-        // ReSharper disable once UnassignedGetOnlyAutoProperty
-        // ReSharper disable once MemberCanBePrivate.Global
-        public string Path { get; }
     }
 }
