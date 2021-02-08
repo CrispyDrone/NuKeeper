@@ -1,6 +1,13 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Git;
+using NuKeeper.Application.Collaboration.Commands.Global;
+using NuKeeper.Application.Collaboration.Commands.Organization;
+using NuKeeper.Application.Collaboration.Commands.Repository;
+using NuKeeper.Application.Local.Commands.Inspect;
+using NuKeeper.Application.Local.Commands.Update;
 using NuKeeper.AzureDevOps;
 using NuKeeper.BitBucket;
 using NuKeeper.BitBucketLocal;
@@ -12,16 +19,13 @@ using NuKeeper.Gitea;
 using NuKeeper.GitHub;
 using NuKeeper.Gitlab;
 using NuKeeper.Local;
+using NuKeeper.Update.Process;
 using NuKeeper.Update.Selection;
 using SimpleInjector;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using NuKeeper.Commands;
-using NuKeeper.Update.Process;
 
 namespace NuKeeper
 {
@@ -68,15 +72,21 @@ namespace NuKeeper
         private static void RegisterCommands(Container container)
         {
             container.Register<GlobalCommand>();
-            container.Register<InspectCommand>();
+            RegisterInspectCommand(container);
             container.Register<OrganizationCommand>();
             container.Register<RepositoryCommand>();
             container.Register<UpdateCommand>();
         }
 
+        private static void RegisterInspectCommand(Container container)
+        {
+            container.Register<InspectCommand>();
+            container.Register<InspectCommandValidator>();
+            container.Register<InspectCommandHandler>();
+        }
+
         private static void Register(Container container)
         {
-            container.Register<ILocalEngine, LocalEngine>();
             container.Register<ICollaborationEngine, CollaborationEngine>();
             container.Register<IGitRepositoryEngine, GitRepositoryEngine>();
             container.Register<IRepositoryUpdater, RepositoryUpdater>();

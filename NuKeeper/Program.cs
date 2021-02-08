@@ -1,5 +1,9 @@
 using McMaster.Extensions.CommandLineUtils;
-using NuKeeper.Commands;
+using NuKeeper.Application.Collaboration.Commands.Global;
+using NuKeeper.Application.Collaboration.Commands.Organization;
+using NuKeeper.Application.Collaboration.Commands.Repository;
+using NuKeeper.Application.Local.Commands.Inspect;
+using NuKeeper.Application.Local.Commands.Update;
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
