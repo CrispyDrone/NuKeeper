@@ -14,17 +14,24 @@ using System.Web;
 
 namespace NuKeeper.AzureDevOps
 {
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     public class AzureDevOpsRestClient
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
+        private readonly HttpClient _fallbackClient;
         private readonly HttpClient _client;
         private readonly INuKeeperLogger _logger;
 
         public AzureDevOpsRestClient(HttpClient client, INuKeeperLogger logger, string personalAccessToken)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
+            _fallbackClient = new HttpClient();
             _logger = logger;
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{string.Empty}:{personalAccessToken}")));
+            _fallbackClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            _fallbackClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{string.Empty}:{personalAccessToken}")));
         }
 
@@ -37,12 +44,22 @@ namespace NuKeeper.AzureDevOps
             return await HandleResponse<T>(response, caller);
         }
 
-        private async Task<T> GetResource<T>(string url, bool previewApi = false, [CallerMemberName] string caller = null)
+        private async Task<T> GetResource<T>(string url, bool previewApi = false, bool isAbsoluteUrl = false, [CallerMemberName] string caller = null)
         {
-            var fullUrl = BuildAzureDevOpsUri(url, previewApi);
+            var fullUrl = BuildAzureDevOpsUri(url, previewApi, isAbsoluteUrl);
             _logger.Detailed($"{caller}: Requesting {fullUrl}");
 
-            var response = await _client.GetAsync(fullUrl);
+            HttpResponseMessage response;
+
+            if (isAbsoluteUrl)
+            {
+                response = await _fallbackClient.GetAsync(fullUrl);
+            }
+            else
+            {
+                response = await _client.GetAsync(fullUrl);
+            }
+
             return await HandleResponse<T>(response, caller);
         }
 
@@ -87,17 +104,17 @@ namespace NuKeeper.AzureDevOps
             }
         }
 
-        public static Uri BuildAzureDevOpsUri(string relativePath, bool previewApi = false)
+        public static Uri BuildAzureDevOpsUri(string path, bool previewApi = false, bool isAbsolute = false)
         {
-            if (relativePath == null)
+            if (path == null)
             {
-                throw new ArgumentNullException(nameof(relativePath));
+                throw new ArgumentNullException(nameof(path));
             }
 
-            var separator = relativePath.Contains("?") ? "&" : "?";
+            var separator = path.Contains("?") ? "&" : "?";
             return previewApi
-                ? new Uri($"{relativePath}{separator}api-version=4.1-preview.1", UriKind.Relative)
-                : new Uri($"{relativePath}{separator}api-version=4.1", UriKind.Relative);
+                ? new Uri($"{path}{separator}api-version=4.1-preview.1", isAbsolute ? UriKind.Absolute : UriKind.Relative)
+                : new Uri($"{path}{separator}api-version=4.1", isAbsolute ? UriKind.Absolute : UriKind.Relative);
         }
 
         // documentation is confusing, I think this won't work without memberId or ownerId
@@ -133,7 +150,16 @@ namespace NuKeeper.AzureDevOps
 
         public async virtual Task<Identity> GetUserAsync(string id)
         {
-            return await GetResource<Identity>($"_apis/identities/{id}");
+            var url = $"_apis/identities/{id}";
+            var isAbsoluteUrl = false;
+
+            if (_client.BaseAddress.Host.Contains("dev.azure.com"))
+            {
+                url = _client.BaseAddress.AbsoluteUri.Replace("dev.azure.com", "vssps.dev.azure.com") + url;
+                isAbsoluteUrl = true;
+            }
+
+            return await GetResource<Identity>(url, previewApi: false, isAbsoluteUrl: isAbsoluteUrl);
         }
 
         public async virtual Task<IEnumerable<AzureRepository>> GetGitRepositories(string projectName)
