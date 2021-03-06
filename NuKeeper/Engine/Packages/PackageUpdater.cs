@@ -173,7 +173,15 @@ namespace NuKeeper.Engine.Packages
                     var title = prTitleTemplate.Output();
                     var body = prBodyTemplate.Output();
 
-                    var pullRequestRequest = new PullRequestRequest(qualifiedBranch, title, repository.DefaultBranch, settings.BranchSettings.DeleteBranchAfterMerge) { Body = body };
+                    var pullRequestRequest = new PullRequestRequest(
+                        qualifiedBranch,
+                        title,
+                        settings.SourceControlServerSettings.Repository?.RemoteInfo?.BranchName ?? repository.DefaultBranch,
+                        settings.BranchSettings.DeleteBranchAfterMerge
+                    )
+                    {
+                        Body = body
+                    };
 
                     foreach (var reviewer in settings.SourceControlServerSettings?.Reviewers ?? Enumerable.Empty<string>())
                     {

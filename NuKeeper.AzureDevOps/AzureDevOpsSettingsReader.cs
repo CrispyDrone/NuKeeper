@@ -1,10 +1,10 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.Configuration;
 using NuKeeper.Abstractions.Formats;
 using NuKeeper.Abstractions.Git;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace NuKeeper.AzureDevOps
 {
@@ -47,7 +47,7 @@ namespace NuKeeper.AzureDevOps
 
             var settings = repositoryUri.IsFile
                 ? await CreateSettingsFromLocal(repositoryUri, targetBranch)
-                : CreateSettingsFromRemote(repositoryUri);
+                : CreateSettingsFromRemote(repositoryUri, targetBranch);
 
             if (settings == null)
             {
@@ -57,7 +57,7 @@ namespace NuKeeper.AzureDevOps
             return settings;
         }
 
-        private static RepositorySettings CreateSettingsFromRemote(Uri repositoryUri)
+        private static RepositorySettings CreateSettingsFromRemote(Uri repositoryUri, string targetBranch)
         {
             // URL pattern is 
             // https://dev.azure.com/{org}/{project}/_git/{repo}/
@@ -78,8 +78,9 @@ namespace NuKeeper.AzureDevOps
                     pathParts[0],  //org
                     repositoryUri, //uri
                     Uri.UnescapeDataString(pathParts[1]),  // project
-                    Uri.UnescapeDataString(pathParts[3])   // reponame
-                    );
+                    Uri.UnescapeDataString(pathParts[3]),
+                    new RemoteInfo { BranchName = targetBranch }// reponame
+                );
             }
             else if (indexOfGit == 1 && pathParts.Length == 3)
             {
@@ -87,8 +88,9 @@ namespace NuKeeper.AzureDevOps
                     null,          //org
                     repositoryUri, //uri
                     Uri.UnescapeDataString(pathParts[0]),  // project
-                    Uri.UnescapeDataString(pathParts[2])   // reponame
-                    );
+                    Uri.UnescapeDataString(pathParts[2]),
+                    new RemoteInfo { BranchName = targetBranch }// reponame
+                );
             }
             return null;
         }
