@@ -6,7 +6,7 @@ This fork includes additional features and fixes that have not been integrated i
 
 Additional features:
 
-+ Support `--reviewer` for TFS for all commands that create pull requests
++ Support `--reviewer` for Azure Devops Services/Azure Devops Server/TFS for all commands that create pull requests
 + Support `--maxopenpullrequests` for AzureDevops/TFS for all commands that create pull requests
 + Support custom templates for commit messages, pull request title, and pull request body. The templates can be specified in [mustache](https://mustache.github.io/), we use the [Stubble engine](https://github.com/StubbleOrg/Stubble).
 + Support `--targetBranch` for Azure Devops while using the repository command and providing a remote url
