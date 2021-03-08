@@ -14,6 +14,17 @@ Additional features:
 + ~~Support `--targetBranch` for TFS while using the repository command and providing a remote url~~ Now included in nukeeper.
 + ~~Fixed issue with `--change minor` or `--change patch` resulting in incorrect major or minor updates when multiple versions installed in different projects already differ in minor or major versions.~~ Now included in nukeeper.
 
+Additional fixes:
+
++ Ensure `NuGet` applies the lowest available versions for the dependencies of
+  a package instead of the highest. It seems that NuGet doesn't care about target
+  framework, so the `Highest` strategy has a high likelihood of failing if you
+  haven't migrated to the latest major versio
+
+  This is a short term fix, in the long term NuKeeper should take into account
+  the target framework of packages, or if this is a bug in NuGet, it will
+  hopefully be fixed.
+
 ## How To Build and Run From Source
 
 You can install the nukeeper dotnet tool of current build using the `InstallNuKeeperDotNetTool` (.bat for Windows, .sh for macOS and Linux) found in the root of the repository.
