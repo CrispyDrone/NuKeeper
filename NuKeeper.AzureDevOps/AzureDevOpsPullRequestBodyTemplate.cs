@@ -15,8 +15,8 @@ namespace NuKeeper.AzureDevOps
         // maybe i should have a template for 1 package, and for multiple?
         // separate template into "header", "body", and "footer"?
         // todo: multiple update sets...
-//-{{#packages}}
-//-| `{{project}}` | `{{name}}` | {{#nuget}}[{{from}}]({{fromurl}}){{/nuget}}{{^nuget}}{{from}}{{/nuget}} | {{#nuget}}[{{to}}]({{tourl}}){{/nuget}}{{^nuget}}{{to}}{{/nuget}} |
+        //-{{#packages}}
+        //-| `{{project}}` | `{{name}}` | {{#nuget}}[{{from}}]({{fromurl}}){{/nuget}}{{^nuget}}{{from}}{{/nuget}} | {{#nuget}}[{{to}}]({{tourl}}){{/nuget}}{{^nuget}}{{to}}{{/nuget}} |
 
         public static string DefaultTemplate { get; } =
 @"{{#multipleChanges}}{{packageCount}} packages were updated in {{projectsUpdated}} project{{#multipleProjects}}s{{/multipleProjects}}:
@@ -44,7 +44,7 @@ namespace NuKeeper.AzureDevOps
 
 {{#footer}}
 {{WarningMessage}}
-{{NuKeeperUrl}}
+**NuKeeper**: {{NuKeeperUrl}}
 {{/footer}}
 ";
 

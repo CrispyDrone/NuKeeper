@@ -221,6 +221,9 @@ namespace NuKeeper.Tests.Engine.Packages
                     Arg.Any<string>()
                 )
                 .Returns(new List<PackageUpdateSet>(), new List<PackageUpdateSet> { packageSetTwo });
+            _collaborationFactory.CollaborationPlatform
+                .PullRequestExists(Arg.Any<ForkData>(), Arg.Any<string>(), Arg.Any<string>())
+                .Returns(true, false);
             var packages = new List<PackageUpdateSet> { packageSetOne, packageSetTwo };
             var repoData = MakeRepositoryData();
             var settings = MakeSettings();

@@ -315,39 +315,68 @@ namespace NuKeeper.Tests.Commands
             var testUri = new Uri("https://github.com");
 
             var collaborationFactorySubstitute = Substitute.For<ICollaborationFactory>();
-            collaborationFactorySubstitute.ForkFinder.FindPushFork(Arg.Any<string>(), Arg.Any<ForkData>()).Returns(Task.FromResult(new ForkData(testUri, "nukeeper", "nukeeper")));
+            collaborationFactorySubstitute
+                .ForkFinder
+                .FindPushFork(
+                    Arg.Any<string>(),
+                    Arg.Any<ForkData>()
+                )
+                .Returns(
+                    Task.FromResult(
+                        new ForkData(
+                            testUri,
+                            "nukeeper",
+                            "nukeeper"
+                        )
+                    )
+                );
             var folderFactorySubstitute = Substitute.For<IFolderFactory>();
-            folderFactorySubstitute.FolderFromPath(Arg.Any<string>())
-                .Returns(ci => new Folder(null, new System.IO.DirectoryInfo(ci.Arg<string>())));
+            folderFactorySubstitute
+                .FolderFromPath(Arg.Any<string>())
+                .Returns(ci => new Folder(Substitute.For<INuKeeperLogger>(), new System.IO.DirectoryInfo(ci.Arg<string>())));
 
             var updater = Substitute.For<IRepositoryUpdater>();
-            var gitEngine = new GitRepositoryEngine(updater, collaborationFactorySubstitute, folderFactorySubstitute,
-                Substitute.For<INuKeeperLogger>(), Substitute.For<IRepositoryFilter>(), Substitute.For<NuGet.Common.ILogger>());
+            var gitEngine = new GitRepositoryEngine(updater,
+                collaborationFactorySubstitute,
+                folderFactorySubstitute,
+                Substitute.For<INuKeeperLogger>(),
+                Substitute.For<IRepositoryFilter>(),
+                Substitute.For<NuGet.Common.ILogger>()
+            );
 
-            await gitEngine.Run(new RepositorySettings
-            {
-                RepositoryUri = testUri,
-                RepositoryOwner = "nukeeper",
-                RepositoryName = "nukeeper"
-            }, new GitUsernamePasswordCredentials()
-            {
-                Password = "..",
-                Username = "nukeeper"
-            }, new SettingsContainer()
-            {
-                SourceControlServerSettings = new SourceControlServerSettings()
+            await gitEngine.Run(
+                new RepositorySettings
                 {
-                    Scope = ServerScope.Repository
+                    RepositoryUri = testUri,
+                    RepositoryOwner = "nukeeper",
+                    RepositoryName = "nukeeper"
                 },
-                UserSettings = new UserSettings()
+                new GitUsernamePasswordCredentials()
                 {
-                    Directory = "testdirectory"
-                }
-            }, null);
+                    Password = "..",
+                    Username = "nukeeper"
+                },
+                new SettingsContainer()
+                {
+                    SourceControlServerSettings = new SourceControlServerSettings()
+                    {
+                        Scope = ServerScope.Repository
+                    },
+                    UserSettings = new UserSettings()
+                    {
+                        Directory = "testdirectory"
+                    }
+                },
+                null
+            );
 
-            await updater.Received().Run(Arg.Any<IGitDriver>(),
-                Arg.Any<RepositoryData>(),
-                Arg.Is<SettingsContainer>(c => c.WorkingFolder.FullPath.EndsWith("testdirectory", StringComparison.Ordinal)));
+            await updater
+                .Received()
+                .Run(
+                    Arg.Any<IGitDriver>(),
+                    Arg.Any<RepositoryData>(),
+                    Arg.Is<SettingsContainer>(c => c.WorkingFolder.FullPath.EndsWith("testdirectory", StringComparison.Ordinal))
+                 );
         }
 
         [Test]

@@ -1,8 +1,8 @@
 using NSubstitute;
-using NUnit.Framework;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
 using NuGet.Versioning;
+using NuKeeper.Abstractions;
 using NuKeeper.Abstractions.CollaborationModels;
 using NuKeeper.Abstractions.CollaborationPlatform;
 using NuKeeper.Abstractions.Configuration;
@@ -12,21 +12,21 @@ using NuKeeper.Abstractions.Logging;
 using NuKeeper.Abstractions.NuGet;
 using NuKeeper.Abstractions.NuGetApi;
 using NuKeeper.Abstractions.RepositoryInspection;
-using NuKeeper.Abstractions;
-using NuKeeper.Engine.Packages;
 using NuKeeper.Engine;
+using NuKeeper.Engine.Packages;
+using NuKeeper.Inspection;
 using NuKeeper.Inspection.Report;
 using NuKeeper.Inspection.Sort;
 using NuKeeper.Inspection.Sources;
-using NuKeeper.Inspection;
+using NuKeeper.Update;
 using NuKeeper.Update.Process;
 using NuKeeper.Update.Selection;
-using NuKeeper.Update;
+using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System;
 
 namespace NuKeeper.Tests.Engine
 {
@@ -100,31 +100,29 @@ namespace NuKeeper.Tests.Engine
         }
 
 #pragma warning disable CA1801
-        [TestCase(0, 0, true, true, 0, 0)]
-        [TestCase(1, 0, true, true, 1, 0)]
-        [TestCase(2, 0, true, true, 2, 0)]
-        [TestCase(3, 0, true, true, 3, 0)]
-        [TestCase(1, 1, true, true, 0, 0)]
-        [TestCase(2, 1, true, true, 1, 0)]
-        [TestCase(3, 1, true, true, 2, 0)]
-        [TestCase(1, 0, false, true, 1, 0)]
-        [TestCase(1, 1, false, true, 0, 0)]
-        [TestCase(1, 0, true, false, 1, 1)]
-        [TestCase(2, 0, true, false, 2, 1)]
-        [TestCase(3, 0, true, false, 3, 1)]
-        [TestCase(1, 1, true, false, 0, 0)]
-        [TestCase(2, 1, true, false, 1, 1)]
-        [TestCase(3, 1, true, false, 2, 1)]
-        [TestCase(1, 0, false, false, 1, 1)]
-        [TestCase(1, 1, false, false, 0, 0)]
+        [TestCase(0, 0, true, 0)]
+        [TestCase(1, 0, true, 1)]
+        [TestCase(2, 0, true, 2)]
+        [TestCase(3, 0, true, 3)]
+        [TestCase(1, 1, true, 0)]
+        [TestCase(2, 1, true, 1)]
+        [TestCase(3, 1, true, 2)]
+        [TestCase(1, 0, false, 1)]
+        [TestCase(1, 1, false, 0)]
+        [TestCase(1, 0, true, 1)]
+        [TestCase(2, 0, true, 2)]
+        [TestCase(3, 0, true, 3)]
+        [TestCase(2, 1, true, 1)]
+        [TestCase(3, 1, true, 2)]
+        [TestCase(1, 0, false, 1)]
+        [TestCase(1, 1, true, 0)]
+        [TestCase(1, 1, false, 0)]
 
         public async Task WhenThereAreUpdates_CountIsAsExpected(
             int numberOfUpdates,
             int existingCommitsPerBranch,
             bool consolidateUpdates,
-            bool pullRequestExists,
-            int expectedUpdates,
-            int expectedPrs
+            int expectedUpdates
         )
         {
             var updateSelection = Substitute.For<IPackageUpdateSelection>();
@@ -135,11 +133,6 @@ namespace NuKeeper.Tests.Engine
 
             gitDriver.GetCurrentHead().Returns("def");
             gitDriver.CheckoutNewBranch(Arg.Any<string>()).Returns(true);
-
-            collaborationFactory
-                .CollaborationPlatform
-                .PullRequestExists(Arg.Any<ForkData>(), Arg.Any<string>(), Arg.Any<string>())
-                .Returns(pullRequestExists);
 
             collaborationFactory
                 .CommitTemplate
@@ -180,12 +173,6 @@ namespace NuKeeper.Tests.Engine
             var count = await repoUpdater.Run(gitDriver, repo, settings);
 
             Assert.That(count, Is.EqualTo(expectedUpdates), "Returned count of updates");
-
-            await collaborationFactory.CollaborationPlatform.Received(expectedPrs)
-                .OpenPullRequest(
-                    Arg.Any<ForkData>(),
-                    Arg.Any<PullRequestRequest>(),
-                    Arg.Any<IEnumerable<string>>());
 
             await gitDriver.Received(expectedUpdates).Commit(Arg.Any<string>());
         }
