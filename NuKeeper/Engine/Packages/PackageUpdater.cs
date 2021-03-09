@@ -146,60 +146,64 @@ namespace NuKeeper.Engine.Packages
 
             bool pullRequestCreated = false;
 
-            // bug: pr might not have been created yet
             if (haveUpdates)
             {
                 await git.Push(repository.Remote, branchWithChanges);
+            }
 
-                string qualifiedBranch;
-                if (!repository.IsFork) //check if we are on a fork, if so qualify the branch name
-                {
-                    qualifiedBranch = branchWithChanges;
-                }
-                else
-                {
-                    qualifiedBranch = repository.Push.Owner + ":" + branchWithChanges;
-                }
+            string qualifiedBranch;
+            if (!repository.IsFork) //check if we are on a fork, if so qualify the branch name
+            {
+                qualifiedBranch = branchWithChanges;
+            }
+            else
+            {
+                qualifiedBranch = repository.Push.Owner + ":" + branchWithChanges;
+            }
 
-                bool pullRequestExists = await _collaborationFactory.CollaborationPlatform.PullRequestExists(repository.Pull, qualifiedBranch, repository.DefaultBranch);
+            bool pullRequestExists = await _collaborationFactory.CollaborationPlatform.PullRequestExists(
+                repository.Pull,
+                qualifiedBranch,
+                repository.DefaultBranch
+            );
 
+            if (!pullRequestExists)
+            {
                 var prTitleTemplate = _collaborationFactory.PullRequestTitleTemplate;
                 var prBodyTemplate = _collaborationFactory.PullRequestBodyTemplate;
 
-                if (!pullRequestExists)
+                _multiEnricher.Enrich(updates, prTitleTemplate);
+                _multiEnricher.Enrich(updates, prBodyTemplate);
+                var title = prTitleTemplate.Output();
+                var body = prBodyTemplate.Output();
+
+                var pullRequestRequest = new PullRequestRequest(
+                    qualifiedBranch,
+                    title,
+                    settings.SourceControlServerSettings.Repository?.RemoteInfo?.BranchName ?? repository.DefaultBranch,
+                    settings.BranchSettings.DeleteBranchAfterMerge
+                )
                 {
-                    _multiEnricher.Enrich(updates, prTitleTemplate);
-                    _multiEnricher.Enrich(updates, prBodyTemplate);
-                    var title = prTitleTemplate.Output();
-                    var body = prBodyTemplate.Output();
+                    Body = body
+                };
 
-                    var pullRequestRequest = new PullRequestRequest(
-                        qualifiedBranch,
-                        title,
-                        settings.SourceControlServerSettings.Repository?.RemoteInfo?.BranchName ?? repository.DefaultBranch,
-                        settings.BranchSettings.DeleteBranchAfterMerge
-                    )
-                    {
-                        Body = body
-                    };
-
-                    foreach (var reviewer in settings.SourceControlServerSettings?.Reviewers ?? Enumerable.Empty<string>())
-                    {
-                        pullRequestRequest.Reviewers.Add(new Reviewer
-                        {
-                            Name = reviewer
-                        });
-                    }
-
-                    await _collaborationFactory.CollaborationPlatform.OpenPullRequest(repository.Pull, pullRequestRequest, settings.SourceControlServerSettings.Labels);
-
-                    pullRequestCreated = true;
-                }
-                else
+                foreach (var reviewer in settings.SourceControlServerSettings?.Reviewers ?? Enumerable.Empty<string>())
                 {
-                    _logger.Normal($"A pull request already exists for {repository.DefaultBranch} <= {qualifiedBranch}");
+                    pullRequestRequest.Reviewers.Add(new Reviewer
+                    {
+                        Name = reviewer
+                    });
                 }
+
+                await _collaborationFactory.CollaborationPlatform.OpenPullRequest(repository.Pull, pullRequestRequest, settings.SourceControlServerSettings.Labels);
+
+                pullRequestCreated = true;
             }
+            else
+            {
+                _logger.Normal($"A pull request already exists for {repository.DefaultBranch} <= {qualifiedBranch}");
+            }
+
             await git.Checkout(repository.DefaultBranch);
             return (filteredUpdates.Count, pullRequestCreated);
         }
