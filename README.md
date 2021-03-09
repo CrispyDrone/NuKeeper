@@ -25,6 +25,8 @@ Additional fixes:
   the target framework of packages, or if this is a bug in NuGet, it will
   hopefully be fixed.
 
++ Ensure NuKeeper retries creating a PR in a next run if it failed.
+
 ## How To Build and Run From Source
 
 You can install the nukeeper dotnet tool of current build using the `InstallNuKeeperDotNetTool` (.bat for Windows, .sh for macOS and Linux) found in the root of the repository.
